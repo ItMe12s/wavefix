@@ -21,7 +21,15 @@ namespace {
     }
 
     double signOf(double value) {
-        return value < 0.0 ? -1.0 : 1.0;
+        if (value > 0.0) {
+            return 1.0;
+        }
+
+        if (value < 0.0) {
+            return -1.0;
+        }
+
+        return 0.0;
     }
 
     double waveRatio(float vehicleSize) {
@@ -41,7 +49,7 @@ namespace {
     }
 
     bool isWaveMovementCandidate(double deltaX, double deltaY, double ratio) {
-        if (std::abs(deltaX) <= kEpsilon || std::abs(deltaY) <= kEpsilon || isLargeJump(deltaX, deltaY)) {
+        if (std::abs(deltaX) <= kEpsilon || std::abs(deltaY) <= kEpsilon) {
             return false;
         }
 
@@ -56,6 +64,7 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
         double anchorX = 0.0;
         double anchorY = 0.0;
         double direction = 0.0;
+        double xDirection = 0.0;
         double ratio = 1.0;
     };
 
@@ -68,14 +77,20 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
         m_fields->anchorX = 0.0;
         m_fields->anchorY = 0.0;
         m_fields->direction = 0.0;
+        m_fields->xDirection = 0.0;
         m_fields->ratio = waveRatio(m_vehicleSize);
     }
 
-    void seedAnchor(cocos2d::CCPoint const& position, double ratio, double direction) {
+    double currentXDirection() {
+        return m_isGoingLeft ? -1.0 : 1.0;
+    }
+
+    void seedAnchor(cocos2d::CCPoint const& position, double ratio, double direction, double xDirection) {
         m_fields->anchorValid = true;
         m_fields->anchorX = static_cast<double>(position.x);
         m_fields->anchorY = static_cast<double>(position.y);
         m_fields->direction = direction;
+        m_fields->xDirection = xDirection;
         m_fields->ratio = ratio;
     }
 
@@ -84,14 +99,15 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
         cocos2d::CCPoint const& requested,
         cocos2d::CCPoint const& corrected,
         double ratio,
-        double direction
+        double direction,
+        double xDirection
     ) {
         if (!loggingEnabled()) {
             return;
         }
 
         log::info(
-            "corrected current=({}, {}) requested=({}, {}) corrected=({}, {}) anchor=({}, {}) ratio={} direction={}",
+            "corrected current=({}, {}) requested=({}, {}) corrected=({}, {}) anchor=({}, {}) ratio={} direction={} xDirection={}",
             current.x,
             current.y,
             requested.x,
@@ -101,7 +117,8 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
             m_fields->anchorX,
             m_fields->anchorY,
             ratio,
-            direction
+            direction,
+            xDirection
         );
     }
 
@@ -116,6 +133,7 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
         auto deltaX = static_cast<double>(position.x) - current.x;
         auto deltaY = static_cast<double>(position.y) - current.y;
         auto ratio = waveRatio(m_vehicleSize);
+        auto xDirection = currentXDirection();
 
         if (isZeroDelta(deltaX, deltaY)) {
             PlayerObject::setPosition(position);
@@ -124,7 +142,11 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
 
         if (!isWaveMovementCandidate(deltaX, deltaY, ratio)) {
             PlayerObject::setPosition(position);
-            seedAnchor(position, ratio, 0.0);
+
+            if (!m_fields->anchorValid || isLargeJump(deltaX, deltaY)) {
+                seedAnchor(position, ratio, 0.0, xDirection);
+            }
+
             return;
         }
 
@@ -133,18 +155,19 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
         if (
             !m_fields->anchorValid ||
             !nearlyEqual(m_fields->ratio, ratio) ||
+            !nearlyEqual(m_fields->xDirection, xDirection) ||
             (std::abs(m_fields->direction) > kEpsilon && !nearlyEqual(m_fields->direction, direction))
         ) {
-            seedAnchor(current, ratio, direction);
+            seedAnchor(current, ratio, direction, xDirection);
+        } else if (std::abs(m_fields->direction) <= kEpsilon) {
+            m_fields->direction = direction;
         }
 
-        m_fields->direction = direction;
-        m_fields->ratio = ratio;
-
-        auto correctedY = m_fields->anchorY + direction * std::abs(static_cast<double>(position.x) - m_fields->anchorX) * ratio;
+        auto signedXTravel = (static_cast<double>(position.x) - m_fields->anchorX) * xDirection;
+        auto correctedY = m_fields->anchorY + direction * signedXTravel * ratio;
         auto corrected = cocos2d::CCPoint(position.x, static_cast<float>(correctedY));
 
-        logCorrection(current, position, corrected, ratio, direction);
+        logCorrection(current, position, corrected, ratio, direction, xDirection);
         PlayerObject::setPosition(corrected);
     }
 
@@ -161,18 +184,20 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
             return;
         }
 
-        m_yVelocity = std::copysign(std::abs(xVelocity) * waveRatio(m_vehicleSize), velocity);
+        auto adjustedVelocity = std::copysign(std::abs(xVelocity) * waveRatio(m_vehicleSize), velocity);
 
         if (loggingEnabled()) {
             log::info(
                 "yVelocity requested={} fixed={} xVelocity={} ratio={} type={}",
                 velocity,
-                m_yVelocity,
+                adjustedVelocity,
                 xVelocity,
                 waveRatio(m_vehicleSize),
                 type
             );
         }
+
+        PlayerObject::setYVelocity(adjustedVelocity, type);
     }
 
     void toggleDartMode(bool enable, bool noEffects) {
@@ -181,7 +206,7 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
         clearAnchor();
 
         if (enable && m_isDart && !m_isDead) {
-            seedAnchor(m_position, waveRatio(m_vehicleSize), 0.0);
+            seedAnchor(m_position, waveRatio(m_vehicleSize), 0.0, currentXDirection());
         }
     }
 };
