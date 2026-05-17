@@ -43,42 +43,28 @@ namespace {
         });
     }
 
-    double signOf(double value) {
-        if (value > 0.0) {
-            return 1.0;
-        }
-
-        if (value < 0.0) {
-            return -1.0;
-        }
-
-        return 0.0;
-    }
-
     double waveRatio(float vehicleSize) {
         return vehicleSize < 1.0f ? 2.0 : 1.0;
     }
 
-    bool isLargeJump(double deltaX, double deltaY) {
-        return std::abs(deltaX) > kLargeJumpDistance || std::abs(deltaY) > kLargeJumpDistance;
+    bool isLargeJump(double absDx, double absDy) {
+        return absDx > kLargeJumpDistance || absDy > kLargeJumpDistance;
     }
 
-    bool isZeroDelta(double deltaX, double deltaY) {
-        return std::abs(deltaX) <= kEpsilon && std::abs(deltaY) <= kEpsilon;
+    bool isZeroDelta(double absDx, double absDy) {
+        return absDx <= kEpsilon && absDy <= kEpsilon;
     }
 
-    bool isWaveMovementCandidate(double deltaX, double deltaY, double ratio) {
-        if (std::abs(deltaX) <= kEpsilon || std::abs(deltaY) <= kEpsilon) {
+    bool isWaveMovementCandidate(double absDx, double absDy, double ratio) {
+        if (absDx <= kEpsilon || absDy <= kEpsilon) {
             return false;
         }
 
-        auto actualRatio = std::abs(deltaY / deltaX);
-        return std::abs(actualRatio - ratio) <= kSlopeTolerance;
+        return std::abs(absDy - ratio * absDx) <= kSlopeTolerance * absDx;
     }
 
-    double projectedY(double anchorX, double anchorY, double positionX, double direction, double xDirection, double ratio) {
-        auto signedXTravel = (positionX - anchorX) * xDirection;
-        return anchorY + direction * signedXTravel * ratio;
+    double projectedY(double anchorX, double anchorY, double positionX, double slope) {
+        return anchorY + slope * (positionX - anchorX);
     }
 }
 
@@ -150,13 +136,12 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
             return true;
         }
 
+        auto slope = m_fields->direction * xDirection * ratio;
         auto expectedY = projectedY(
             m_fields->anchorX,
             m_fields->anchorY,
             static_cast<double>(current.x),
-            m_fields->direction,
-            xDirection,
-            ratio
+            slope
         );
 
         return std::abs(static_cast<double>(current.y) - expectedY) <= kAnchorDriftTolerance;
@@ -217,11 +202,13 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
         auto current = m_position;
         auto deltaX = static_cast<double>(position.x) - static_cast<double>(current.x);
         auto deltaY = static_cast<double>(position.y) - static_cast<double>(current.y);
+        auto absDx = std::abs(deltaX);
+        auto absDy = std::abs(deltaY);
         auto ratio = waveRatio(m_vehicleSize);
         auto xDirection = currentXDirection();
 
         // Ignore idle frame, probably doesn't happen in normal mode but maybe in platformer mode.
-        if (isZeroDelta(deltaX, deltaY)) {
+        if (isZeroDelta(absDx, absDy)) {
             PlayerObject::setPosition(position);
             return;
         }
@@ -234,7 +221,7 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
 
         m_fields->slopeStateActive = currentSlopeState;
 
-        if (isLargeJump(deltaX, deltaY) || m_wasTeleported) {
+        if (isLargeJump(absDx, absDy) || m_wasTeleported) {
             char const* reason = m_wasTeleported ? "teleport" : "large-jump";
             PlayerObject::setPosition(position);
             seedAnchor(m_position, ratio, 0.0, xDirection, reason);
@@ -242,12 +229,12 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
             return;
         }
 
-        if (std::abs(deltaY) <= kEpsilon) {
+        if (absDy <= kEpsilon) {
             PlayerObject::setPosition(position);
             return;
         }
 
-        if (!isWaveMovementCandidate(deltaX, deltaY, ratio)) {
+        if (!isWaveMovementCandidate(absDx, absDy, ratio)) {
             PlayerObject::setPosition(position);
 
             if (!m_fields->anchorValid) {
@@ -257,35 +244,33 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
             return;
         }
 
-        auto direction = signOf(deltaY);
+        auto direction = std::copysign(1.0, deltaY);
 
-        if (
-            !m_fields->anchorValid ||
-            m_fields->ratio != ratio ||
-            m_fields->xDirection != xDirection ||
-            !anchorSupportsCurrentX(current, xDirection) ||
-            !anchorMatchesCurrent(current, ratio, xDirection) ||
-            (m_fields->direction != 0.0 && m_fields->direction != direction)
-        ) {
+        bool supportsX = anchorSupportsCurrentX(current, xDirection);
+        bool matches   = anchorMatchesCurrent(current, ratio, xDirection);
+        bool ratioOk   = m_fields->ratio == ratio;
+        bool xdirOk    = m_fields->xDirection == xDirection;
+        bool flipOk    = m_fields->direction == 0.0 || m_fields->direction == direction;
+
+        if (!m_fields->anchorValid || !ratioOk || !xdirOk || !supportsX || !matches || !flipOk) {
             char const* reason =
                 !m_fields->anchorValid ? "reseed-invalid" :
-                m_fields->ratio != ratio ? "reseed-ratio" :
-                m_fields->xDirection != xDirection ? "reseed-xdir" :
-                !anchorSupportsCurrentX(current, xDirection) ? "reseed-xback" :
-                !anchorMatchesCurrent(current, ratio, xDirection) ? "reseed-drift" :
-                "reseed-flip";
+                !ratioOk               ? "reseed-ratio"   :
+                !xdirOk                ? "reseed-xdir"    :
+                !supportsX             ? "reseed-xback"   :
+                !matches               ? "reseed-drift"   :
+                                         "reseed-flip";
             seedAnchor(current, ratio, direction, xDirection, reason);
         } else if (m_fields->direction == 0.0) {
             m_fields->direction = direction;
         }
 
+        auto slope = direction * xDirection * ratio;
         auto correctedY = projectedY(
             m_fields->anchorX,
             m_fields->anchorY,
             static_cast<double>(position.x),
-            direction,
-            xDirection,
-            ratio
+            slope
         );
         auto corrected = cocos2d::CCPoint(position.x, static_cast<float>(correctedY));
 
