@@ -1,4 +1,5 @@
 #include <Geode/Geode.hpp>
+#include <Geode/binding/HardStreak.hpp>
 #include <Geode/modify/PlayerObject.hpp>
 
 #include <cmath>
@@ -12,7 +13,7 @@ namespace {
     constexpr double kSlopeTolerance = 0.03;
     constexpr double kAnchorDriftTolerance = 0.125;
     constexpr double kAnchorXDriftTolerance = 0.125;
-    constexpr double kLargeJumpDistance = 64.0;
+    constexpr double kLargeJumpDistance = 60.0; // 2 grid space in the editor.
 
     bool fixEnabled() {
         return Mod::get()->getSettingValue<bool>(kEnabledSetting);
@@ -68,6 +69,7 @@ namespace {
 class $modify(WaveFixPlayerObject, PlayerObject) {
     struct Fields {
         bool anchorValid = false;
+        bool slopeStateActive = false;
         double anchorX = 0.0;
         double anchorY = 0.0;
         double direction = 0.0;
@@ -81,6 +83,7 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
 
     void clearAnchor() {
         m_fields->anchorValid = false;
+        m_fields->slopeStateActive = false;
         m_fields->anchorX = 0.0;
         m_fields->anchorY = 0.0;
         m_fields->direction = 0.0;
@@ -90,6 +93,23 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
 
     double currentXDirection() {
         return m_isGoingLeft ? -1.0 : 1.0;
+    }
+
+    bool slopeStateActive() {
+        return (
+            m_isCollidingWithSlope ||
+            m_isOnSlope ||
+            m_slopeSlidingMaybeRotated ||
+            m_currentSlope != nullptr ||
+            m_currentSlope2 != nullptr ||
+            m_currentPotentialSlope != nullptr
+        );
+    }
+
+    void resetWaveTrail() {
+        if (m_waveTrail != nullptr) {
+            m_waveTrail->reset();
+        }
     }
 
     bool anchorMatchesCurrent(cocos2d::CCPoint const& current, double ratio, double xDirection) {
@@ -178,10 +198,25 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
             return;
         }
 
+        auto currentSlopeState = slopeStateActive();
+
+        if (currentSlopeState && !m_fields->slopeStateActive) {
+            resetWaveTrail();
+        }
+
+        m_fields->slopeStateActive = currentSlopeState;
+
+        if (isLargeJump(deltaX, deltaY) || m_wasTeleported) {
+            PlayerObject::setPosition(position);
+            seedAnchor(m_position, ratio, 0.0, currentXDirection());
+            resetWaveTrail();
+            return;
+        }
+
         if (!isWaveMovementCandidate(deltaX, deltaY, ratio)) {
             PlayerObject::setPosition(position);
 
-            if (!m_fields->anchorValid || isLargeJump(deltaX, deltaY)) {
+            if (!m_fields->anchorValid) {
                 seedAnchor(m_position, ratio, 0.0, currentXDirection());
             }
 
