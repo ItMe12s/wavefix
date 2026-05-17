@@ -11,6 +11,11 @@
 	"version": "v1.0.0",
 	"developer": "imes",
 	"description": "Fixes the wave gamemode angle being off by ~0.1 degree and less.",
+	"tags": [
+		"gameplay",
+		"enhancement",
+		"bugfix"
+	],
 	"links": {
 		"community": "https://discord.gg/E8f6D6XqbW",
 		"source": "https://github.com/ItMe12s/wavefix"
