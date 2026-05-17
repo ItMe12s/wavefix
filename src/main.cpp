@@ -132,8 +132,7 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
             m_isOnSlope ||
             m_slopeSlidingMaybeRotated ||
             m_currentSlope != nullptr ||
-            m_currentSlope2 != nullptr ||
-            m_currentPotentialSlope != nullptr
+            m_currentSlope2 != nullptr
         );
     }
 
