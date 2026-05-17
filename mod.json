@@ -7,10 +7,10 @@
 		"ios": "2.2081"
 	},
 	"id": "imes.wavefix",
-	"name": "wavefix",
+	"name": "Wave Fix",
 	"version": "v1.0.0",
 	"developer": "imes",
-	"description": "Fixes regular and mini wave trajectory drift caused by float precision loss.",
+	"description": "Fixes the wave gamemode angle being off by ~1 degree and less.",
 	"dependencies": {
 		"geode.node-ids": ">=v1.23.3"
 	},
