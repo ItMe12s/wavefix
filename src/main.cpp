@@ -38,10 +38,6 @@ namespace {
         return vehicleSize < 1.0f ? 2.0 : 1.0;
     }
 
-    bool nearlyEqual(double left, double right) {
-        return std::abs(left - right) <= kEpsilon;
-    }
-
     bool isLargeJump(double deltaX, double deltaY) {
         return std::abs(deltaX) > kLargeJumpDistance || std::abs(deltaY) > kLargeJumpDistance;
     }
@@ -179,8 +175,8 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
         }
 
         auto current = m_position;
-        auto deltaX = static_cast<double>(position.x) - current.x;
-        auto deltaY = static_cast<double>(position.y) - current.y;
+        auto deltaX = static_cast<double>(position.x) - static_cast<double>(current.x);
+        auto deltaY = static_cast<double>(position.y) - static_cast<double>(current.y);
         auto ratio = waveRatio(m_vehicleSize);
         auto xDirection = currentXDirection();
 
@@ -207,11 +203,7 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
 
         if (!isWaveMovementCandidate(deltaX, deltaY, ratio)) {
             PlayerObject::setPosition(position);
-
-            if (!m_fields->anchorValid) {
-                seedAnchor(m_position, ratio, 0.0, xDirection);
-            }
-
+            seedAnchor(m_position, ratio, 0.0, xDirection);
             return;
         }
 
@@ -219,7 +211,7 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
 
         if (
             !m_fields->anchorValid ||
-            !nearlyEqual(m_fields->ratio, ratio) ||
+            m_fields->ratio != ratio ||
             m_fields->xDirection != xDirection ||
             !anchorSupportsCurrentX(current, xDirection) ||
             !anchorMatchesCurrent(current, ratio, xDirection) ||
