@@ -1,6 +1,6 @@
 # Wave Fix
 
-Fixes the wave angle being off by about 1 degree and reduces precision loss using anchored trajectory projection.
+Fixes the wave angle being off by around 0.1 degrees and reduces precision loss using anchored trajectory projection.
 
 Now you can enjoy the perfect 45-degree wave and ~63.4349488229...-degree mini wave, also known as arctan(2)!
 

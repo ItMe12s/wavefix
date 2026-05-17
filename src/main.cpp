@@ -12,7 +12,6 @@ namespace {
     constexpr double kEpsilon = 0.000001;
     constexpr double kSlopeTolerance = 0.03;
     constexpr double kAnchorDriftTolerance = 0.125;
-    constexpr double kAnchorXDriftTolerance = 0.125;
     constexpr double kLargeJumpDistance = 60.0; // 2 grid space in the editor.
 
     bool fixEnabled() {
@@ -88,14 +87,14 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
         m_fields->anchorY = 0.0;
         m_fields->direction = 0.0;
         m_fields->xDirection = 0.0;
-        m_fields->ratio = waveRatio(m_vehicleSize);
+        m_fields->ratio = 1.0;
     }
 
     double currentXDirection() {
         return m_isGoingLeft ? -1.0 : 1.0;
     }
 
-    bool slopeStateActive() {
+    bool isSlopeStateActive() {
         return (
             m_isCollidingWithSlope ||
             m_isOnSlope ||
@@ -113,12 +112,7 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
     }
 
     bool anchorMatchesCurrent(cocos2d::CCPoint const& current, double ratio, double xDirection) {
-        if (
-            !m_fields->anchorValid ||
-            std::abs(m_fields->direction) <= kEpsilon ||
-            !nearlyEqual(m_fields->ratio, ratio) ||
-            !nearlyEqual(m_fields->xDirection, xDirection)
-        ) {
+        if (m_fields->direction == 0.0) {
             return true;
         }
 
@@ -140,7 +134,7 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
         }
 
         auto signedXTravel = (static_cast<double>(current.x) - m_fields->anchorX) * xDirection;
-        return signedXTravel >= -kAnchorXDriftTolerance;
+        return signedXTravel >= -kAnchorDriftTolerance;
     }
 
     void seedAnchor(cocos2d::CCPoint const& position, double ratio, double direction, double xDirection) {
@@ -155,10 +149,7 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
     void logCorrection(
         cocos2d::CCPoint const& current,
         cocos2d::CCPoint const& requested,
-        cocos2d::CCPoint const& corrected,
-        double ratio,
-        double direction,
-        double xDirection
+        cocos2d::CCPoint const& corrected
     ) {
         if (!loggingEnabled()) {
             return;
@@ -174,9 +165,9 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
             corrected.y,
             m_fields->anchorX,
             m_fields->anchorY,
-            ratio,
-            direction,
-            xDirection
+            m_fields->ratio,
+            m_fields->direction,
+            m_fields->xDirection
         );
     }
 
@@ -193,12 +184,13 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
         auto ratio = waveRatio(m_vehicleSize);
         auto xDirection = currentXDirection();
 
+        // Ignore idle frame, probably doesn't happen in normal mode but maybe in platformer mode.
         if (isZeroDelta(deltaX, deltaY)) {
             PlayerObject::setPosition(position);
             return;
         }
 
-        auto currentSlopeState = slopeStateActive();
+        auto currentSlopeState = isSlopeStateActive();
 
         if (currentSlopeState && !m_fields->slopeStateActive) {
             resetWaveTrail();
@@ -208,7 +200,7 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
 
         if (isLargeJump(deltaX, deltaY) || m_wasTeleported) {
             PlayerObject::setPosition(position);
-            seedAnchor(m_position, ratio, 0.0, currentXDirection());
+            seedAnchor(m_position, ratio, 0.0, xDirection);
             resetWaveTrail();
             return;
         }
@@ -217,7 +209,7 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
             PlayerObject::setPosition(position);
 
             if (!m_fields->anchorValid) {
-                seedAnchor(m_position, ratio, 0.0, currentXDirection());
+                seedAnchor(m_position, ratio, 0.0, xDirection);
             }
 
             return;
@@ -228,13 +220,13 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
         if (
             !m_fields->anchorValid ||
             !nearlyEqual(m_fields->ratio, ratio) ||
-            !nearlyEqual(m_fields->xDirection, xDirection) ||
+            m_fields->xDirection != xDirection ||
             !anchorSupportsCurrentX(current, xDirection) ||
             !anchorMatchesCurrent(current, ratio, xDirection) ||
-            (std::abs(m_fields->direction) > kEpsilon && !nearlyEqual(m_fields->direction, direction))
+            (m_fields->direction != 0.0 && m_fields->direction != direction)
         ) {
             seedAnchor(current, ratio, direction, xDirection);
-        } else if (std::abs(m_fields->direction) <= kEpsilon) {
+        } else if (m_fields->direction == 0.0) {
             m_fields->direction = direction;
         }
 
@@ -248,7 +240,7 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
         );
         auto corrected = cocos2d::CCPoint(position.x, static_cast<float>(correctedY));
 
-        logCorrection(current, position, corrected, ratio, direction, xDirection);
+        logCorrection(current, position, corrected);
         PlayerObject::setPosition(corrected);
     }
 
