@@ -13,5 +13,13 @@
 	"description": "Perfect 45 degrees wave movement.",
 	"dependencies": {
 		"geode.node-ids": ">=v1.23.3"
+	},
+	"settings": {
+		"enabled": {
+			"type": "bool",
+			"name": "Enable Wave Fix",
+			"description": "Enforce symmetrical regular and mini wave trajectories.",
+			"default": true
+		}
 	}
 }
