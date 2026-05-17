@@ -10,6 +10,7 @@ namespace {
     constexpr char const* kLoggingSetting = "logging";
     constexpr double kEpsilon = 0.000001;
     constexpr double kSlopeTolerance = 0.03;
+    constexpr double kAnchorDriftTolerance = 0.125;
     constexpr double kLargeJumpDistance = 64.0;
 
     bool fixEnabled() {
@@ -56,6 +57,11 @@ namespace {
         auto actualRatio = std::abs(deltaY / deltaX);
         return std::abs(actualRatio - ratio) <= kSlopeTolerance;
     }
+
+    double projectedY(double anchorX, double anchorY, double positionX, double direction, double xDirection, double ratio) {
+        auto signedXTravel = (positionX - anchorX) * xDirection;
+        return anchorY + direction * signedXTravel * ratio;
+    }
 }
 
 class $modify(WaveFixPlayerObject, PlayerObject) {
@@ -83,6 +89,28 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
 
     double currentXDirection() {
         return m_isGoingLeft ? -1.0 : 1.0;
+    }
+
+    bool anchorMatchesCurrent(cocos2d::CCPoint const& current, double ratio, double xDirection) {
+        if (
+            !m_fields->anchorValid ||
+            std::abs(m_fields->direction) <= kEpsilon ||
+            !nearlyEqual(m_fields->ratio, ratio) ||
+            !nearlyEqual(m_fields->xDirection, xDirection)
+        ) {
+            return true;
+        }
+
+        auto expectedY = projectedY(
+            m_fields->anchorX,
+            m_fields->anchorY,
+            static_cast<double>(current.x),
+            m_fields->direction,
+            xDirection,
+            ratio
+        );
+
+        return std::abs(static_cast<double>(current.y) - expectedY) <= kAnchorDriftTolerance;
     }
 
     void seedAnchor(cocos2d::CCPoint const& position, double ratio, double direction, double xDirection) {
@@ -156,6 +184,7 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
             !m_fields->anchorValid ||
             !nearlyEqual(m_fields->ratio, ratio) ||
             !nearlyEqual(m_fields->xDirection, xDirection) ||
+            !anchorMatchesCurrent(current, ratio, xDirection) ||
             (std::abs(m_fields->direction) > kEpsilon && !nearlyEqual(m_fields->direction, direction))
         ) {
             seedAnchor(current, ratio, direction, xDirection);
@@ -163,8 +192,14 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
             m_fields->direction = direction;
         }
 
-        auto signedXTravel = (static_cast<double>(position.x) - m_fields->anchorX) * xDirection;
-        auto correctedY = m_fields->anchorY + direction * signedXTravel * ratio;
+        auto correctedY = projectedY(
+            m_fields->anchorX,
+            m_fields->anchorY,
+            static_cast<double>(position.x),
+            direction,
+            xDirection,
+            ratio
+        );
         auto corrected = cocos2d::CCPoint(position.x, static_cast<float>(correctedY));
 
         logCorrection(current, position, corrected, ratio, direction, xDirection);
