@@ -10,16 +10,22 @@
 	"name": "wavefix",
 	"version": "v1.0.0",
 	"developer": "imes",
-	"description": "Logs wave physics hook paths for diagnostics.",
+	"description": "Fixes regular and mini wave trajectory drift caused by float precision loss.",
 	"dependencies": {
 		"geode.node-ids": ">=v1.23.3"
 	},
 	"settings": {
+		"enabled": {
+			"type": "bool",
+			"name": "Enable Wave Fix",
+			"description": "Correct regular and mini wave movement using anchored trajectory projection.",
+			"default": true
+		},
 		"logging": {
 			"type": "bool",
 			"name": "Enable Debug Logging",
-			"description": "Log wave physics hook paths only.",
-			"default": true
+			"description": "Log corrected wave movement and velocity values.",
+			"default": false
 		}
 	}
 }

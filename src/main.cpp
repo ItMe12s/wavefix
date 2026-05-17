@@ -6,230 +6,182 @@
 using namespace geode::prelude;
 
 namespace {
+    constexpr char const* kEnabledSetting = "enabled";
     constexpr char const* kLoggingSetting = "logging";
-    constexpr int kMaxMovementLogs = 240;
-    constexpr int kMaxCollisionLogs = 80;
+    constexpr double kEpsilon = 0.000001;
+    constexpr double kSlopeTolerance = 0.03;
+    constexpr double kLargeJumpDistance = 64.0;
+
+    bool fixEnabled() {
+        return Mod::get()->getSettingValue<bool>(kEnabledSetting);
+    }
 
     bool loggingEnabled() {
         return Mod::get()->getSettingValue<bool>(kLoggingSetting);
     }
 
-    char const* boolText(bool value) {
-        return value ? "true" : "false";
+    double signOf(double value) {
+        return value < 0.0 ? -1.0 : 1.0;
     }
 
-    double safeRatio(double deltaX, double deltaY) {
-        if (std::abs(deltaX) <= 0.000001) {
-            return 0.0;
+    double waveRatio(float vehicleSize) {
+        return vehicleSize < 1.0f ? 2.0 : 1.0;
+    }
+
+    bool nearlyEqual(double left, double right) {
+        return std::abs(left - right) <= kEpsilon;
+    }
+
+    bool isLargeJump(double deltaX, double deltaY) {
+        return std::abs(deltaX) > kLargeJumpDistance || std::abs(deltaY) > kLargeJumpDistance;
+    }
+
+    bool isZeroDelta(double deltaX, double deltaY) {
+        return std::abs(deltaX) <= kEpsilon && std::abs(deltaY) <= kEpsilon;
+    }
+
+    bool isWaveMovementCandidate(double deltaX, double deltaY, double ratio) {
+        if (std::abs(deltaX) <= kEpsilon || std::abs(deltaY) <= kEpsilon || isLargeJump(deltaX, deltaY)) {
+            return false;
         }
 
-        return deltaY / deltaX;
-    }
-
-    bool isLargePositionJump(double deltaX, double deltaY) {
-        return std::abs(deltaX) > 64.0 || std::abs(deltaY) > 64.0;
-    }
-
-    int objectID(GameObject* object) {
-        return object ? object->m_objectID : 0;
+        auto actualRatio = std::abs(deltaY / deltaX);
+        return std::abs(actualRatio - ratio) <= kSlopeTolerance;
     }
 }
 
 class $modify(WaveFixPlayerObject, PlayerObject) {
     struct Fields {
-        int movementLogs = 0;
-        int collisionLogs = 0;
+        bool anchorValid = false;
+        double anchorX = 0.0;
+        double anchorY = 0.0;
+        double direction = 0.0;
+        double ratio = 1.0;
     };
 
-    bool shouldLogMovement() {
-        return loggingEnabled() && m_isDart && m_fields->movementLogs++ < kMaxMovementLogs;
+    bool shouldFixWave() {
+        return fixEnabled() && m_isDart && !m_isDead;
     }
 
-    bool shouldLogCollisionBlock(int lines) {
-        if (!loggingEnabled() || !m_isDart || m_fields->collisionLogs + lines > kMaxCollisionLogs) {
-            return false;
+    void clearAnchor() {
+        m_fields->anchorValid = false;
+        m_fields->anchorX = 0.0;
+        m_fields->anchorY = 0.0;
+        m_fields->direction = 0.0;
+        m_fields->ratio = waveRatio(m_vehicleSize);
+    }
+
+    void seedAnchor(cocos2d::CCPoint const& position, double ratio, double direction) {
+        m_fields->anchorValid = true;
+        m_fields->anchorX = static_cast<double>(position.x);
+        m_fields->anchorY = static_cast<double>(position.y);
+        m_fields->direction = direction;
+        m_fields->ratio = ratio;
+    }
+
+    void logCorrection(
+        cocos2d::CCPoint const& current,
+        cocos2d::CCPoint const& requested,
+        cocos2d::CCPoint const& corrected,
+        double ratio,
+        double direction
+    ) {
+        if (!loggingEnabled()) {
+            return;
         }
 
-        m_fields->collisionLogs += lines;
-        return true;
-    }
-
-    void logPlayerState(char const* tag, float dt = 0.0f) {
         log::info(
-            "[{}] dt={} dart={} dead={} upsideDown={} second={} vehicleSize={} playerSpeed={} speedMultiplier={} yVel={} xVel={} posDouble=({}, {}) posFloat=({}, {})",
-            tag,
-            dt,
-            boolText(m_isDart),
-            boolText(m_isDead),
-            boolText(m_isUpsideDown),
-            boolText(m_isSecondPlayer),
-            m_vehicleSize,
-            m_playerSpeed,
-            m_speedMultiplier,
-            m_yVelocity,
-            getCurrentXVelocity(),
-            m_positionX,
-            m_positionY,
-            m_position.x,
-            m_position.y
+            "corrected current=({}, {}) requested=({}, {}) corrected=({}, {}) anchor=({}, {}) ratio={} direction={}",
+            current.x,
+            current.y,
+            requested.x,
+            requested.y,
+            corrected.x,
+            corrected.y,
+            m_fields->anchorX,
+            m_fields->anchorY,
+            ratio,
+            direction
         );
     }
 
-    void update(float dt) {
-        auto wasDart = m_isDart;
-
-        PlayerObject::update(dt);
-
-        if ((wasDart || m_isDart) && shouldLogMovement()) {
-            logPlayerState("update", dt);
-        }
-    }
-
     void setPosition(cocos2d::CCPoint const& position) {
-        auto shouldLog = shouldLogMovement();
-        auto oldPosition = m_position;
-
-        if (shouldLog) {
-            auto deltaX = static_cast<double>(position.x) - oldPosition.x;
-            auto deltaY = static_cast<double>(position.y) - oldPosition.y;
-
-            log::info(
-                "[setPosition:before] requested=({}, {}) deltaFloat=({}, {}) ratio={} largeJump={} currentDouble=({}, {}) currentFloat=({}, {})",
-                position.x,
-                position.y,
-                deltaX,
-                deltaY,
-                safeRatio(deltaX, deltaY),
-                boolText(isLargePositionJump(deltaX, deltaY)),
-                m_positionX,
-                m_positionY,
-                oldPosition.x,
-                oldPosition.y
-            );
+        if (!shouldFixWave()) {
+            clearAnchor();
+            PlayerObject::setPosition(position);
+            return;
         }
 
-        PlayerObject::setPosition(position);
+        auto current = m_position;
+        auto deltaX = static_cast<double>(position.x) - current.x;
+        auto deltaY = static_cast<double>(position.y) - current.y;
+        auto ratio = waveRatio(m_vehicleSize);
 
-        if (shouldLog) {
-            auto appliedDeltaX = static_cast<double>(m_position.x) - oldPosition.x;
-            auto appliedDeltaY = static_cast<double>(m_position.y) - oldPosition.y;
-
-            log::info(
-                "[setPosition:after] applied=({}, {}) appliedDeltaFloat=({}, {}) ratio={} double=({}, {})",
-                m_position.x,
-                m_position.y,
-                appliedDeltaX,
-                appliedDeltaY,
-                safeRatio(appliedDeltaX, appliedDeltaY),
-                m_positionX,
-                m_positionY
-            );
+        if (isZeroDelta(deltaX, deltaY)) {
+            PlayerObject::setPosition(position);
+            return;
         }
+
+        if (!isWaveMovementCandidate(deltaX, deltaY, ratio)) {
+            PlayerObject::setPosition(position);
+            seedAnchor(position, ratio, 0.0);
+            return;
+        }
+
+        auto direction = signOf(deltaY);
+
+        if (
+            !m_fields->anchorValid ||
+            !nearlyEqual(m_fields->ratio, ratio) ||
+            (std::abs(m_fields->direction) > kEpsilon && !nearlyEqual(m_fields->direction, direction))
+        ) {
+            seedAnchor(current, ratio, direction);
+        }
+
+        m_fields->direction = direction;
+        m_fields->ratio = ratio;
+
+        auto correctedY = m_fields->anchorY + direction * std::abs(static_cast<double>(position.x) - m_fields->anchorX) * ratio;
+        auto corrected = cocos2d::CCPoint(position.x, static_cast<float>(correctedY));
+
+        logCorrection(current, position, corrected, ratio, direction);
+        PlayerObject::setPosition(corrected);
     }
 
     void setYVelocity(double velocity, int type) {
-        if (shouldLogMovement()) {
-            log::info(
-                "[setYVelocity] requested={} type={} previousYVel={} xVel={} vehicleSize={}",
-                velocity,
-                type,
-                m_yVelocity,
-                getCurrentXVelocity(),
-                m_vehicleSize
-            );
+        if (!shouldFixWave() || std::abs(velocity) <= kEpsilon) {
+            PlayerObject::setYVelocity(velocity, type);
+            return;
         }
 
-        PlayerObject::setYVelocity(velocity, type);
+        auto xVelocity = getCurrentXVelocity();
+
+        if (std::abs(xVelocity) <= kEpsilon) {
+            PlayerObject::setYVelocity(velocity, type);
+            return;
+        }
+
+        m_yVelocity = std::copysign(std::abs(xVelocity) * waveRatio(m_vehicleSize), velocity);
+
+        if (loggingEnabled()) {
+            log::info(
+                "yVelocity requested={} fixed={} xVelocity={} ratio={} type={}",
+                velocity,
+                m_yVelocity,
+                xVelocity,
+                waveRatio(m_vehicleSize),
+                type
+            );
+        }
     }
 
     void toggleDartMode(bool enable, bool noEffects) {
-        if (loggingEnabled()) {
-            log::info(
-                "[toggleDartMode:before] enable={} noEffects={} dart={} yVel={} xVel={} vehicleSize={} posDouble=({}, {})",
-                boolText(enable),
-                boolText(noEffects),
-                boolText(m_isDart),
-                m_yVelocity,
-                getCurrentXVelocity(),
-                m_vehicleSize,
-                m_positionX,
-                m_positionY
-            );
-        }
-
         PlayerObject::toggleDartMode(enable, noEffects);
 
-        m_fields->movementLogs = 0;
-        m_fields->collisionLogs = 0;
+        clearAnchor();
 
-        if (loggingEnabled()) {
-            log::info(
-                "[toggleDartMode:after] enable={} dart={} dead={} upsideDown={} second={} yVel={} xVel={} vehicleSize={} posDouble=({}, {})",
-                boolText(enable),
-                boolText(m_isDart),
-                boolText(m_isDead),
-                boolText(m_isUpsideDown),
-                boolText(m_isSecondPlayer),
-                m_yVelocity,
-                getCurrentXVelocity(),
-                m_vehicleSize,
-                m_positionX,
-                m_positionY
-            );
+        if (enable && m_isDart && !m_isDead) {
+            seedAnchor(m_position, waveRatio(m_vehicleSize), 0.0);
         }
-    }
-
-    bool collidedWithObject(float dt, GameObject* object, cocos2d::CCRect rect, bool skipCheck) {
-        auto logBefore = shouldLogCollisionBlock(4);
-
-        if (logBefore) {
-            log::info(
-                "[collidedWithObject:before] dt={} objectID={} skipCheck={} rect=({}, {}, {}, {})",
-                dt,
-                objectID(object),
-                boolText(skipCheck),
-                rect.origin.x,
-                rect.origin.y,
-                rect.size.width,
-                rect.size.height
-            );
-            logPlayerState("collidedWithObject:before", dt);
-        }
-
-        auto result = PlayerObject::collidedWithObject(dt, object, rect, skipCheck);
-
-        if (logBefore) {
-            log::info("[collidedWithObject:after] result={}", boolText(result));
-            logPlayerState("collidedWithObject:after", dt);
-        }
-
-        return result;
-    }
-
-    bool collidedWithObjectInternal(float dt, GameObject* object, cocos2d::CCRect rect, bool skipCheck) {
-        auto logBefore = shouldLogCollisionBlock(4);
-
-        if (logBefore) {
-            log::info(
-                "[collidedWithObjectInternal:before] dt={} objectID={} skipCheck={} rect=({}, {}, {}, {})",
-                dt,
-                objectID(object),
-                boolText(skipCheck),
-                rect.origin.x,
-                rect.origin.y,
-                rect.size.width,
-                rect.size.height
-            );
-            logPlayerState("collidedWithObjectInternal:before", dt);
-        }
-
-        auto result = PlayerObject::collidedWithObjectInternal(dt, object, rect, skipCheck);
-
-        if (logBefore) {
-            log::info("[collidedWithObjectInternal:after] result={}", boolText(result));
-            logPlayerState("collidedWithObjectInternal:after", dt);
-        }
-
-        return result;
     }
 };
