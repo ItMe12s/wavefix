@@ -10,7 +10,11 @@
 	"name": "Wave Fix",
 	"version": "v1.0.0",
 	"developer": "imes",
-	"description": "Fixes the wave gamemode angle being off by ~1 degree and less.",
+	"description": "Fixes the wave gamemode angle being off by ~0.1 degree and less.",
+	"links": {
+		"community": "https://discord.gg/E8f6D6XqbW",
+		"source": "https://github.com/ItMe12s/wavefix"
+	},
 	"dependencies": {
 		"geode.node-ids": ">=v1.23.3"
 	},

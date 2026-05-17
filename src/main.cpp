@@ -12,7 +12,7 @@ namespace {
     constexpr double kEpsilon = 0.000001;
     constexpr double kSlopeTolerance = 0.03;
     constexpr double kAnchorDriftTolerance = 0.125;
-    constexpr double kLargeJumpDistance = 60.0; // 2 grid space in the editor.
+    constexpr double kLargeJumpDistance = 60.0; // 2 grid spaces in the editor.
 
     bool fixEnabled() {
         return Mod::get()->getSettingValue<bool>(kEnabledSetting);
