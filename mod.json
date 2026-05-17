@@ -10,15 +10,15 @@
 	"name": "wavefix",
 	"version": "v1.0.0",
 	"developer": "imes",
-	"description": "Perfect 45 degrees wave movement.",
+	"description": "Logs wave physics hook paths for diagnostics.",
 	"dependencies": {
 		"geode.node-ids": ">=v1.23.3"
 	},
 	"settings": {
-		"enabled": {
+		"logging": {
 			"type": "bool",
-			"name": "Enable Wave Fix",
-			"description": "Enforce symmetrical regular and mini wave trajectories.",
+			"name": "Enable Debug Logging",
+			"description": "Log wave physics hook paths only.",
 			"default": true
 		}
 	}
