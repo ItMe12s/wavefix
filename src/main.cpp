@@ -19,10 +19,6 @@ namespace {
     bool g_loggingEnabled = false;
     bool g_stateLoggingEnabled = false;
 
-    bool fixEnabled() {
-        return g_fixEnabled;
-    }
-
     // Probably not needed but it's like 1 cpu cycle faster.
 #define WAVEFIX_LOG_FIX(...)   do { if (g_loggingEnabled)      [[unlikely]] ::geode::log::info(__VA_ARGS__); } while (0)
 #define WAVEFIX_LOG_STATE(...) do { if (g_stateLoggingEnabled) [[unlikely]] ::geode::log::info(__VA_ARGS__); } while (0)
@@ -80,7 +76,7 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
     };
 
     bool shouldFixWave() {
-        return fixEnabled() && m_isDart && !m_isDead;
+        return g_fixEnabled && m_isDart && !m_isDead;
     }
 
     void clearAnchor(char const* reason = "unspecified") {
