@@ -14,12 +14,27 @@ namespace {
     constexpr double kAnchorDriftTolerance = 0.125;
     constexpr double kLargeJumpDistance = 60.0; // 2 grid spaces in the editor.
 
+    bool g_fixEnabled = true;
+    bool g_loggingEnabled = false;
+
     bool fixEnabled() {
-        return Mod::get()->getSettingValue<bool>(kEnabledSetting);
+        return g_fixEnabled;
     }
 
     bool loggingEnabled() {
-        return Mod::get()->getSettingValue<bool>(kLoggingSetting);
+        return g_loggingEnabled;
+    }
+
+    $on_mod(Loaded) {
+        g_fixEnabled = Mod::get()->getSettingValue<bool>(kEnabledSetting);
+        g_loggingEnabled = Mod::get()->getSettingValue<bool>(kLoggingSetting);
+
+        listenForSettingChanges<bool>(kEnabledSetting, [](bool value) {
+            g_fixEnabled = value;
+        });
+        listenForSettingChanges<bool>(kLoggingSetting, [](bool value) {
+            g_loggingEnabled = value;
+        });
     }
 
     double signOf(double value) {
@@ -125,10 +140,6 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
     }
 
     bool anchorSupportsCurrentX(cocos2d::CCPoint const& current, double xDirection) {
-        if (!m_fields->anchorValid) {
-            return true;
-        }
-
         auto signedXTravel = (static_cast<double>(current.x) - m_fields->anchorX) * xDirection;
         return signedXTravel >= -kAnchorDriftTolerance;
     }
@@ -201,9 +212,18 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
             return;
         }
 
+        if (std::abs(deltaY) <= kEpsilon) {
+            PlayerObject::setPosition(position);
+            return;
+        }
+
         if (!isWaveMovementCandidate(deltaX, deltaY, ratio)) {
             PlayerObject::setPosition(position);
-            seedAnchor(m_position, ratio, 0.0, xDirection);
+
+            if (!m_fields->anchorValid) {
+                seedAnchor(m_position, ratio, 0.0, xDirection);
+            }
+
             return;
         }
 
@@ -249,7 +269,8 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
             return;
         }
 
-        auto adjustedVelocity = std::copysign(std::abs(xVelocity) * waveRatio(m_vehicleSize), velocity);
+        auto ratio = waveRatio(m_vehicleSize);
+        auto adjustedVelocity = std::copysign(std::abs(xVelocity) * ratio, velocity);
 
         if (loggingEnabled()) {
             log::info(
@@ -257,7 +278,7 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
                 velocity,
                 adjustedVelocity,
                 xVelocity,
-                waveRatio(m_vehicleSize),
+                ratio,
                 type
             );
         }
