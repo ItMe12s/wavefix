@@ -26,6 +26,10 @@ namespace {
         return deltaY / deltaX;
     }
 
+    bool isLargePositionJump(double deltaX, double deltaY) {
+        return std::abs(deltaX) > 64.0 || std::abs(deltaY) > 64.0;
+    }
+
     int objectID(GameObject* object) {
         return object ? object->m_objectID : 0;
     }
@@ -82,25 +86,45 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
     }
 
     void setPosition(cocos2d::CCPoint const& position) {
-        if (shouldLogMovement()) {
-            auto deltaX = static_cast<double>(position.x) - m_positionX;
-            auto deltaY = static_cast<double>(position.y) - m_positionY;
+        auto shouldLog = shouldLogMovement();
+        auto oldPosition = m_position;
+
+        if (shouldLog) {
+            auto deltaX = static_cast<double>(position.x) - oldPosition.x;
+            auto deltaY = static_cast<double>(position.y) - oldPosition.y;
 
             log::info(
-                "[setPosition] requested=({}, {}) delta=({}, {}) ratio={} currentDouble=({}, {}) currentFloat=({}, {})",
+                "[setPosition:before] requested=({}, {}) deltaFloat=({}, {}) ratio={} largeJump={} currentDouble=({}, {}) currentFloat=({}, {})",
                 position.x,
                 position.y,
                 deltaX,
                 deltaY,
                 safeRatio(deltaX, deltaY),
+                boolText(isLargePositionJump(deltaX, deltaY)),
                 m_positionX,
                 m_positionY,
-                m_position.x,
-                m_position.y
+                oldPosition.x,
+                oldPosition.y
             );
         }
 
         PlayerObject::setPosition(position);
+
+        if (shouldLog) {
+            auto appliedDeltaX = static_cast<double>(m_position.x) - oldPosition.x;
+            auto appliedDeltaY = static_cast<double>(m_position.y) - oldPosition.y;
+
+            log::info(
+                "[setPosition:after] applied=({}, {}) appliedDeltaFloat=({}, {}) ratio={} double=({}, {})",
+                m_position.x,
+                m_position.y,
+                appliedDeltaX,
+                appliedDeltaY,
+                safeRatio(appliedDeltaX, appliedDeltaY),
+                m_positionX,
+                m_positionY
+            );
+        }
     }
 
     void setYVelocity(double velocity, int type) {
