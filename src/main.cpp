@@ -23,13 +23,9 @@ namespace {
         return g_fixEnabled;
     }
 
-    bool loggingEnabled() {
-        return g_loggingEnabled;
-    }
-
-    bool stateLoggingEnabled() {
-        return g_stateLoggingEnabled;
-    }
+    // Probably not needed but it's like 1 cpu cycle faster.
+#define WAVEFIX_LOG_FIX(...)   do { if (g_loggingEnabled)      [[unlikely]] ::geode::log::info(__VA_ARGS__); } while (0)
+#define WAVEFIX_LOG_STATE(...) do { if (g_stateLoggingEnabled) [[unlikely]] ::geode::log::info(__VA_ARGS__); } while (0)
 
     $on_mod(Loaded) {
         g_fixEnabled = Mod::get()->getSettingValue<bool>(kEnabledSetting);
@@ -102,8 +98,8 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
     }
 
     void clearAnchor(char const* reason = "unspecified") {
-        if (stateLoggingEnabled() && m_fields->anchorValid) {
-            log::info(
+        if (m_fields->anchorValid) {
+            WAVEFIX_LOG_STATE(
                 "anchor cleared reason={} prevAnchor=({}, {}) ratio={} direction={} xDirection={}",
                 reason,
                 m_fields->anchorX,
@@ -137,15 +133,13 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
     }
 
     void resetWaveTrail(char const* reason = "unspecified") {
-        if (stateLoggingEnabled()) {
-            log::info(
-                "waveTrail reset reason={} pos=({}, {}) hasTrail={}",
-                reason,
-                m_position.x,
-                m_position.y,
-                m_waveTrail != nullptr
-            );
-        }
+        WAVEFIX_LOG_STATE(
+            "waveTrail reset reason={} pos=({}, {}) hasTrail={}",
+            reason,
+            m_position.x,
+            m_position.y,
+            m_waveTrail != nullptr
+        );
         if (m_waveTrail != nullptr) {
             m_waveTrail->reset();
         }
@@ -174,18 +168,16 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
     }
 
     void seedAnchor(cocos2d::CCPoint const& position, double ratio, double direction, double xDirection, char const* reason = "unspecified") {
-        if (stateLoggingEnabled()) {
-            log::info(
-                "anchor seed reason={} pos=({}, {}) ratio={} direction={} xDirection={} reseed={}",
-                reason,
-                position.x,
-                position.y,
-                ratio,
-                direction,
-                xDirection,
-                m_fields->anchorValid
-            );
-        }
+        WAVEFIX_LOG_STATE(
+            "anchor seed reason={} pos=({}, {}) ratio={} direction={} xDirection={} reseed={}",
+            reason,
+            position.x,
+            position.y,
+            ratio,
+            direction,
+            xDirection,
+            m_fields->anchorValid
+        );
         m_fields->anchorValid = true;
         m_fields->anchorX = static_cast<double>(position.x);
         m_fields->anchorY = static_cast<double>(position.y);
@@ -199,11 +191,7 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
         cocos2d::CCPoint const& requested,
         cocos2d::CCPoint const& corrected
     ) {
-        if (!loggingEnabled()) {
-            return;
-        }
-
-        log::info(
+        WAVEFIX_LOG_FIX(
             "corrected current=({}, {}) requested=({}, {}) corrected=({}, {}) anchor=({}, {}) ratio={} direction={} xDirection={}",
             current.x,
             current.y,
@@ -232,13 +220,6 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
         auto ratio = waveRatio(m_vehicleSize);
         auto xDirection = currentXDirection();
 
-        if (stateLoggingEnabled() && m_wasTeleported) {
-            log::info(
-                "teleport flag set current=({}, {}) requested=({}, {}) delta=({}, {})",
-                current.x, current.y, position.x, position.y, deltaX, deltaY
-            );
-        }
-
         // Ignore idle frame, probably doesn't happen in normal mode but maybe in platformer mode.
         if (isZeroDelta(deltaX, deltaY)) {
             PlayerObject::setPosition(position);
@@ -246,20 +227,6 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
         }
 
         auto currentSlopeState = isSlopeStateActive();
-
-        if (stateLoggingEnabled() && currentSlopeState != m_fields->slopeStateActive) {
-            log::info(
-                "slopeState transition active={} colliding={} onSlope={} sliding={} cur={} cur2={} potential={} pos=({}, {})",
-                currentSlopeState,
-                m_isCollidingWithSlope,
-                m_isOnSlope,
-                m_slopeSlidingMaybeRotated,
-                m_currentSlope != nullptr,
-                m_currentSlope2 != nullptr,
-                m_currentPotentialSlope != nullptr,
-                current.x, current.y
-            );
-        }
 
         if (currentSlopeState && !m_fields->slopeStateActive) {
             resetWaveTrail("slope-enter");
@@ -342,24 +309,20 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
         auto ratio = waveRatio(m_vehicleSize);
         auto adjustedVelocity = std::copysign(std::abs(xVelocity) * ratio, velocity);
 
-        if (loggingEnabled()) {
-            log::info(
-                "yVelocity requested={} fixed={} xVelocity={} ratio={} type={}",
-                velocity,
-                adjustedVelocity,
-                xVelocity,
-                ratio,
-                type
-            );
-        }
+        WAVEFIX_LOG_FIX(
+            "yVelocity requested={} fixed={} xVelocity={} ratio={} type={}",
+            velocity,
+            adjustedVelocity,
+            xVelocity,
+            ratio,
+            type
+        );
 
         PlayerObject::setYVelocity(adjustedVelocity, type);
     }
 
     void toggleDartMode(bool enable, bool noEffects) {
-        if (stateLoggingEnabled()) {
-            log::info("toggleDartMode enable={} noEffects={} isDart={} isDead={}", enable, noEffects, m_isDart, m_isDead);
-        }
+        WAVEFIX_LOG_STATE("toggleDartMode enable={} noEffects={} isDart={} isDead={}", enable, noEffects, m_isDart, m_isDead);
 
         PlayerObject::toggleDartMode(enable, noEffects);
 
