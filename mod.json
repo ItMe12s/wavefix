@@ -35,6 +35,12 @@
 			"name": "Enable Debug Logging",
 			"description": "Log corrected wave movement and velocity values.",
 			"default": false
+		},
+		"stateLogging": {
+			"type": "bool",
+			"name": "Enable State Change Logging",
+			"description": "Log wave trail resets, slope state transitions, and teleport events.",
+			"default": false
 		}
 	}
 }
