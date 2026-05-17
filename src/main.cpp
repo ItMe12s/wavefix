@@ -11,6 +11,7 @@ namespace {
     constexpr double kEpsilon = 0.000001;
     constexpr double kSlopeTolerance = 0.03;
     constexpr double kAnchorDriftTolerance = 0.125;
+    constexpr double kAnchorXDriftTolerance = 0.125;
     constexpr double kLargeJumpDistance = 64.0;
 
     bool fixEnabled() {
@@ -113,6 +114,15 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
         return std::abs(static_cast<double>(current.y) - expectedY) <= kAnchorDriftTolerance;
     }
 
+    bool anchorSupportsCurrentX(cocos2d::CCPoint const& current, double xDirection) {
+        if (!m_fields->anchorValid) {
+            return true;
+        }
+
+        auto signedXTravel = (static_cast<double>(current.x) - m_fields->anchorX) * xDirection;
+        return signedXTravel >= -kAnchorXDriftTolerance;
+    }
+
     void seedAnchor(cocos2d::CCPoint const& position, double ratio, double direction, double xDirection) {
         m_fields->anchorValid = true;
         m_fields->anchorX = static_cast<double>(position.x);
@@ -172,7 +182,7 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
             PlayerObject::setPosition(position);
 
             if (!m_fields->anchorValid || isLargeJump(deltaX, deltaY)) {
-                seedAnchor(position, ratio, 0.0, xDirection);
+                seedAnchor(m_position, ratio, 0.0, currentXDirection());
             }
 
             return;
@@ -184,6 +194,7 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
             !m_fields->anchorValid ||
             !nearlyEqual(m_fields->ratio, ratio) ||
             !nearlyEqual(m_fields->xDirection, xDirection) ||
+            !anchorSupportsCurrentX(current, xDirection) ||
             !anchorMatchesCurrent(current, ratio, xDirection) ||
             (std::abs(m_fields->direction) > kEpsilon && !nearlyEqual(m_fields->direction, direction))
         ) {
