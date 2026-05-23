@@ -1,4 +1,9 @@
-# 1.0.1
+# 1.0.2
+
+- Skip correction when going sideways.
+- More optimizations.
+
+## 1.0.1
 
 - Fixed wave trail visual bug flickering.
 - Logging option for state changes.

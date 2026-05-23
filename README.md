@@ -8,6 +8,7 @@ For more information, watch this educational [YouTube Short](https://www.youtube
 
 ## IMPORTANT
 
+- Does NOT support going sideways because I cannot handle RobTop's code.
 - This mod may be considered cheating for list levels because it changes wave physics.
 - This mod may break bots or macros.
 - Works well with the Click Between Frames mod and does not cause desync.

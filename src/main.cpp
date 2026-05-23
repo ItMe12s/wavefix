@@ -1,4 +1,5 @@
 #include <Geode/Geode.hpp>
+#include <Geode/binding/GJBaseGameLayer.hpp>
 #include <Geode/binding/HardStreak.hpp>
 #include <Geode/modify/PlayerObject.hpp>
 
@@ -58,10 +59,6 @@ namespace {
 
         return std::abs(absDy - ratio * absDx) <= kSlopeTolerance * absDx;
     }
-
-    double projectedY(double anchorX, double anchorY, double positionX, double slope) {
-        return anchorY + slope * (positionX - anchorX);
-    }
 }
 
 class $modify(WaveFixPlayerObject, PlayerObject) {
@@ -75,8 +72,17 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
         double ratio = 1.0;
     };
 
+    bool isLocalGameplayPlayer() {
+        auto* gl = GJBaseGameLayer::get();
+        if (gl == nullptr) {
+            return false;
+        }
+        return this == gl->m_player1 || this == gl->m_player2;
+    }
+
+    // The bindings for sideways are too goofy and I'm not rewriting RobTop's code.
     bool shouldFixWave() {
-        return g_fixEnabled && m_isDart && !m_isDead;
+        return g_fixEnabled && m_isDart && !m_isDead && !m_isSideways && isLocalGameplayPlayer();
     }
 
     void clearAnchor(char const* reason = "unspecified") {
@@ -127,27 +133,6 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
         }
     }
 
-    bool anchorMatchesCurrent(cocos2d::CCPoint const& current, double ratio, double xDirection) {
-        if (m_fields->direction == 0.0) {
-            return true;
-        }
-
-        auto slope = m_fields->direction * xDirection * ratio;
-        auto expectedY = projectedY(
-            m_fields->anchorX,
-            m_fields->anchorY,
-            static_cast<double>(current.x),
-            slope
-        );
-
-        return std::abs(static_cast<double>(current.y) - expectedY) <= kAnchorDriftTolerance;
-    }
-
-    bool anchorSupportsCurrentX(cocos2d::CCPoint const& current, double xDirection) {
-        auto signedXTravel = (static_cast<double>(current.x) - m_fields->anchorX) * xDirection;
-        return signedXTravel >= -kAnchorDriftTolerance;
-    }
-
     void seedAnchor(cocos2d::CCPoint const& position, double ratio, double direction, double xDirection, char const* reason = "unspecified") {
         WAVEFIX_LOG_STATE(
             "anchor seed reason={} pos=({}, {}) ratio={} direction={} xDirection={} reseed={}",
@@ -195,13 +180,12 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
             return;
         }
 
+        auto* f = m_fields.operator->();
         auto current = m_position;
         auto deltaX = static_cast<double>(position.x) - static_cast<double>(current.x);
         auto deltaY = static_cast<double>(position.y) - static_cast<double>(current.y);
         auto absDx = std::abs(deltaX);
         auto absDy = std::abs(deltaY);
-        auto ratio = waveRatio(m_vehicleSize);
-        auto xDirection = currentXDirection();
 
         // Ignore idle frame, probably doesn't happen in normal mode but maybe in platformer mode.
         if (isZeroDelta(absDx, absDy)) {
@@ -210,12 +194,13 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
         }
 
         auto currentSlopeState = isSlopeStateActive();
-
-        if (currentSlopeState && !m_fields->slopeStateActive) {
+        if (currentSlopeState && !f->slopeStateActive) {
             resetWaveTrail("slope-enter");
         }
+        f->slopeStateActive = currentSlopeState;
 
-        m_fields->slopeStateActive = currentSlopeState;
+        auto ratio = waveRatio(m_vehicleSize);
+        auto xDirection = currentXDirection();
 
         if (isLargeJump(absDx, absDy) || m_wasTeleported) {
             char const* reason = m_wasTeleported ? "teleport" : "large-jump";
@@ -232,42 +217,44 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
 
         if (!isWaveMovementCandidate(absDx, absDy, ratio)) {
             PlayerObject::setPosition(position);
-
-            if (!m_fields->anchorValid) {
+            if (!f->anchorValid) {
                 seedAnchor(m_position, ratio, 0.0, xDirection, "non-wave-move");
             }
-
             return;
         }
 
         auto direction = std::copysign(1.0, deltaY);
+        auto currentX = static_cast<double>(current.x);
+        auto currentY = static_cast<double>(current.y);
 
-        bool supportsX = anchorSupportsCurrentX(current, xDirection);
-        bool matches   = anchorMatchesCurrent(current, ratio, xDirection);
-        bool ratioOk   = m_fields->ratio == ratio;
-        bool xdirOk    = m_fields->xDirection == xDirection;
-        bool flipOk    = m_fields->direction == 0.0 || m_fields->direction == direction;
+        // Short-circuit reseed checks, bail early when possible.
+        char const* reseedReason = nullptr;
+        if (!f->anchorValid)                  reseedReason = "reseed-invalid";
+        else if (f->ratio != ratio)           reseedReason = "reseed-ratio";
+        else if (f->xDirection != xDirection) reseedReason = "reseed-xdir";
+        else {
+            auto signedXTravel = (currentX - f->anchorX) * xDirection;
+            if (signedXTravel < -kAnchorDriftTolerance) {
+                reseedReason = "reseed-xback";
+            } else if (f->direction != 0.0) {
+                auto slope = f->direction * xDirection * ratio;
+                auto expectedY = f->anchorY + slope * (currentX - f->anchorX);
+                if (std::abs(currentY - expectedY) > kAnchorDriftTolerance) {
+                    reseedReason = "reseed-drift";
+                } else if (f->direction != direction) {
+                    reseedReason = "reseed-flip";
+                }
+            }
+        }
 
-        if (!m_fields->anchorValid || !ratioOk || !xdirOk || !supportsX || !matches || !flipOk) {
-            char const* reason =
-                !m_fields->anchorValid ? "reseed-invalid" :
-                !ratioOk               ? "reseed-ratio"   :
-                !xdirOk                ? "reseed-xdir"    :
-                !supportsX             ? "reseed-xback"   :
-                !matches               ? "reseed-drift"   :
-                                         "reseed-flip";
-            seedAnchor(current, ratio, direction, xDirection, reason);
-        } else if (m_fields->direction == 0.0) {
-            m_fields->direction = direction;
+        if (reseedReason != nullptr) {
+            seedAnchor(current, ratio, direction, xDirection, reseedReason);
+        } else if (f->direction == 0.0) {
+            f->direction = direction;
         }
 
         auto slope = direction * xDirection * ratio;
-        auto correctedY = projectedY(
-            m_fields->anchorX,
-            m_fields->anchorY,
-            static_cast<double>(position.x),
-            slope
-        );
+        auto correctedY = f->anchorY + slope * (static_cast<double>(position.x) - f->anchorX);
         auto corrected = cocos2d::CCPoint(position.x, static_cast<float>(correctedY));
 
         logCorrection(current, position, corrected);
@@ -309,7 +296,7 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
 
         clearAnchor("toggle-dart");
 
-        if (enable && m_isDart && !m_isDead) {
+        if (enable && m_isDart && !m_isDead && !m_isSideways && isLocalGameplayPlayer()) {
             seedAnchor(m_position, waveRatio(m_vehicleSize), 0.0, currentXDirection(), "toggle-dart");
         }
     }
