@@ -250,6 +250,11 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
             return;
         }
 
+        if (deltaX * xDirection <= kEpsilon) {
+            PlayerObject::setPosition(position);
+            return;
+        }
+
         auto direction = std::copysign(1.0, deltaY);
 
         bool supportsX = anchorSupportsCurrentX(current, xDirection);
