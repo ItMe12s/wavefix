@@ -12,5 +12,6 @@ For more information, watch this educational [YouTube Short](https://www.youtube
 - This mod may be considered cheating for list levels because it changes wave physics.
 - This mod may break bots or macros.
 - Works well with the Click Between Frames mod and does not cause desync.
+- Any frame extrapolation mods can cause the camera to look jittery when locked to the player.
 
 In my opinion, it should be allowed because it prevents random slope deaths after the player made the correct input.
