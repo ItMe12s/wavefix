@@ -65,6 +65,7 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
     struct Fields {
         bool anchorValid = false;
         bool slopeStateActive = false;
+        int specialMoveDepth = 0;
         double anchorX = 0.0;
         double anchorY = 0.0;
         double direction = 0.0;
@@ -174,9 +175,35 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
         );
     }
 
+    // Had to do all this because of the spider orb and pad bug.
+    // Also future proofing for other special moves in-case RobTop adds more.
+    bool isInSpecialMove() {
+        return m_fields->specialMoveDepth > 0;
+    }
+
+    void beginSpecialMove() {
+        m_fields->specialMoveDepth += 1;
+    }
+
+    void endSpecialMove(char const* reason) {
+        if (m_fields->specialMoveDepth > 0) {
+            m_fields->specialMoveDepth -= 1;
+        }
+
+        if (m_fields->specialMoveDepth == 0 && shouldFixWave()) {
+            seedAnchor(m_position, waveRatio(m_vehicleSize), 0.0, currentXDirection(), reason);
+            resetWaveTrail(reason);
+        }
+    }
+
     void setPosition(cocos2d::CCPoint const& position) {
         if (!shouldFixWave()) {
             clearAnchor("shouldFixWave=false");
+            PlayerObject::setPosition(position);
+            return;
+        }
+
+        if (isInSpecialMove()) {
             PlayerObject::setPosition(position);
             return;
         }
@@ -208,6 +235,13 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
             PlayerObject::setPosition(position);
             seedAnchor(m_position, ratio, 0.0, xDirection, reason);
             resetWaveTrail(reason);
+            return;
+        }
+
+        if (absDx <= kEpsilon && absDy > kEpsilon) {
+            PlayerObject::setPosition(position);
+            seedAnchor(m_position, ratio, 0.0, xDirection, "vertical-reseed");
+            resetWaveTrail("vertical-reseed");
             return;
         }
 
@@ -268,6 +302,11 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
     }
 
     void setYVelocity(double velocity, int type) {
+        if (isInSpecialMove()) {
+            PlayerObject::setYVelocity(velocity, type);
+            return;
+        }
+
         if (!shouldFixWave() || std::abs(velocity) <= kEpsilon) {
             PlayerObject::setYVelocity(velocity, type);
             return;
@@ -305,5 +344,35 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
         if (enable && m_isDart && !m_isDead && !m_isSideways && isLocalGameplayPlayer()) {
             seedAnchor(m_position, waveRatio(m_vehicleSize), 0.0, currentXDirection(), "toggle-dart");
         }
+    }
+
+    void ringJump(RingObject* object, bool skipCheck) {
+        beginSpecialMove();
+        PlayerObject::ringJump(object, skipCheck);
+        endSpecialMove("ring-jump");
+    }
+
+    void spiderTestJump(bool dynamic) {
+        beginSpecialMove();
+        PlayerObject::spiderTestJump(dynamic);
+        endSpecialMove("spider-test-jump");
+    }
+
+    void spiderTestJumpInternal(bool dynamic) {
+        beginSpecialMove();
+        PlayerObject::spiderTestJumpInternal(dynamic);
+        endSpecialMove("spider-test-jump-internal");
+    }
+
+    void bumpPlayer(float bumpMod, int objectType, bool noEffects, GameObject* object) {
+        beginSpecialMove();
+        PlayerObject::bumpPlayer(bumpMod, objectType, noEffects, object);
+        endSpecialMove("bump-player");
+    }
+
+    void propellPlayer(float yVelocity, bool noEffects, int objectType) {
+        beginSpecialMove();
+        PlayerObject::propellPlayer(yVelocity, noEffects, objectType);
+        endSpecialMove("propell-player");
     }
 };

@@ -1,4 +1,9 @@
-# 1.0.2
+# 1.0.3
+
+- Fixed spider orb and pad bug.
+- Added fun facts to the about page.
+
+## 1.0.2
 
 - Skip correction when going sideways.
 - More optimizations.
