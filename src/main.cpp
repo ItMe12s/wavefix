@@ -192,7 +192,9 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
 
         if (m_fields->specialMoveDepth == 0 && shouldFixWave()) {
             seedAnchor(m_position, waveRatio(m_vehicleSize), 0.0, currentXDirection(), reason);
-            resetWaveTrail(reason);
+            if (!m_isDashing) {
+                resetWaveTrail(reason);
+            }
         }
     }
 
@@ -361,7 +363,6 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
 
         if (shouldFixWave()) {
             seedAnchor(m_position, waveRatio(m_vehicleSize), 0.0, currentXDirection(), "dash-release");
-            resetWaveTrail("dash-release");
         }
     }
 
