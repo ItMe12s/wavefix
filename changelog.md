@@ -1,4 +1,8 @@
-# 1.0.3
+# 1.0.4
+
+- Fixed dash orb bug.
+
+## 1.0.3
 
 - Fixed spider orb and pad bug.
 - Added fun facts to the about page.

@@ -208,6 +208,11 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
             return;
         }
 
+        if (m_isDashing) {
+            PlayerObject::setPosition(position);
+            return;
+        }
+
         auto* f = m_fields.operator->();
         auto current = m_position;
         auto deltaX = static_cast<double>(position.x) - static_cast<double>(current.x);
@@ -307,6 +312,11 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
             return;
         }
 
+        if (m_isDashing) {
+            PlayerObject::setYVelocity(velocity, type);
+            return;
+        }
+
         if (!shouldFixWave() || std::abs(velocity) <= kEpsilon) {
             PlayerObject::setYVelocity(velocity, type);
             return;
@@ -343,6 +353,15 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
 
         if (enable && m_isDart && !m_isDead && !m_isSideways && isLocalGameplayPlayer()) {
             seedAnchor(m_position, waveRatio(m_vehicleSize), 0.0, currentXDirection(), "toggle-dart");
+        }
+    }
+
+    void stopDashing() {
+        PlayerObject::stopDashing();
+
+        if (shouldFixWave()) {
+            seedAnchor(m_position, waveRatio(m_vehicleSize), 0.0, currentXDirection(), "dash-release");
+            resetWaveTrail("dash-release");
         }
     }
 
