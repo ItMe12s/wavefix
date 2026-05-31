@@ -1,4 +1,9 @@
-# 1.0.5
+# 1.1.0
+
+- Fixed wave trail disappearing.
+- Code improvements.
+
+## 1.0.5
 
 - More stable teleports.
 
