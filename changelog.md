@@ -1,4 +1,8 @@
-# 1.0.4
+# 1.0.5
+
+- More stable teleports.
+
+## 1.0.4
 
 - Fixed dash orb bug.
 

@@ -1,6 +1,8 @@
 #include <Geode/Geode.hpp>
 #include <Geode/binding/GJBaseGameLayer.hpp>
 #include <Geode/binding/HardStreak.hpp>
+#include <Geode/binding/TeleportPortalObject.hpp>
+#include <Geode/modify/GJBaseGameLayer.hpp>
 #include <Geode/modify/PlayerObject.hpp>
 
 #include <cmath>
@@ -66,6 +68,7 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
         bool anchorValid = false;
         bool slopeStateActive = false;
         int specialMoveDepth = 0;
+        int teleportBypassFrames = 0;
         double anchorX = 0.0;
         double anchorY = 0.0;
         double direction = 0.0;
@@ -181,6 +184,11 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
         return m_fields->specialMoveDepth > 0;
     }
 
+    bool shouldBypassWaveFix() {
+        return isInSpecialMove() || m_wasTeleported || m_fields->teleportBypassFrames > 0;
+    }
+
+public:
     void beginSpecialMove() {
         m_fields->specialMoveDepth += 1;
     }
@@ -198,6 +206,34 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
         }
     }
 
+    void armTeleportBypass(int frames, char const* reason) {
+        auto previousFrames = m_fields->teleportBypassFrames;
+        if (frames > previousFrames) {
+            m_fields->teleportBypassFrames = frames;
+        }
+
+        WAVEFIX_LOG_STATE(
+            "teleport bypass armed reason={} prevFrames={} frames={} nextFrames={}",
+            reason,
+            previousFrames,
+            frames,
+            m_fields->teleportBypassFrames
+        );
+    }
+
+    void tickTeleportBypass() {
+        if (m_fields->teleportBypassFrames <= 0) {
+            return;
+        }
+
+        m_fields->teleportBypassFrames -= 1;
+        WAVEFIX_LOG_STATE("teleport bypass tick remaining={}", m_fields->teleportBypassFrames);
+    }
+
+    bool isTeleportFixTarget() {
+        return shouldFixWave();
+    }
+
     void setPosition(cocos2d::CCPoint const& position) {
         if (!shouldFixWave()) {
             clearAnchor("shouldFixWave=false");
@@ -205,8 +241,12 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
             return;
         }
 
-        if (isInSpecialMove()) {
+        if (shouldBypassWaveFix()) {
             PlayerObject::setPosition(position);
+            if (!isInSpecialMove() && !m_isDashing) {
+                seedAnchor(m_position, waveRatio(m_vehicleSize), 0.0, currentXDirection(), "teleport-bypass");
+                resetWaveTrail("teleport-bypass");
+            }
             return;
         }
 
@@ -237,8 +277,8 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
         auto ratio = waveRatio(m_vehicleSize);
         auto xDirection = currentXDirection();
 
-        if (isLargeJump(absDx, absDy) || m_wasTeleported) {
-            char const* reason = m_wasTeleported ? "teleport" : "large-jump";
+        if (isLargeJump(absDx, absDy)) {
+            char const* reason = "large-jump";
             PlayerObject::setPosition(position);
             seedAnchor(m_position, ratio, 0.0, xDirection, reason);
             resetWaveTrail(reason);
@@ -309,7 +349,7 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
     }
 
     void setYVelocity(double velocity, int type) {
-        if (isInSpecialMove()) {
+        if (shouldBypassWaveFix()) {
             PlayerObject::setYVelocity(velocity, type);
             return;
         }
@@ -394,5 +434,35 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
         beginSpecialMove();
         PlayerObject::propellPlayer(yVelocity, noEffects, objectType);
         endSpecialMove("propell-player");
+    }
+};
+
+// This is some bullshit, I love you RobTop.
+class $modify(WaveFixGameLayer, GJBaseGameLayer) {
+    void teleportPlayer(TeleportPortalObject* object, PlayerObject* player) {
+        auto* wavePlayer = player != nullptr ? geode::cast::modify_cast<WaveFixPlayerObject*>(player) : nullptr;
+        auto wrapped = wavePlayer != nullptr && wavePlayer->isTeleportFixTarget();
+
+        if (wrapped) {
+            wavePlayer->beginSpecialMove();
+        }
+
+        GJBaseGameLayer::teleportPlayer(object, player);
+
+        if (wrapped) {
+            wavePlayer->endSpecialMove("teleport-player");
+            wavePlayer->armTeleportBypass(2, "teleport-player");
+        }
+    }
+
+    void update(float dt) {
+        if (m_player1 != nullptr) {
+            geode::cast::modify_cast<WaveFixPlayerObject*>(m_player1)->tickTeleportBypass();
+        }
+        if (m_player2 != nullptr) {
+            geode::cast::modify_cast<WaveFixPlayerObject*>(m_player2)->tickTeleportBypass();
+        }
+
+        GJBaseGameLayer::update(dt);
     }
 };

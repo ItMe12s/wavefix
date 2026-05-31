@@ -16,6 +16,8 @@ For more information, watch this educational [YouTube Short](https://www.youtube
 
 In my opinion, it should be allowed because it prevents random slope deaths after the player made the correct input.
 
+Use the bug report and feedback channel in my Discord server!
+
 ## Fun Fact
 
 The wave being 44.9 and 45.1 degrees is a misconception, it actually depends on the player's position.
