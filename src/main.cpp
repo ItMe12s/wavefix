@@ -17,6 +17,7 @@ namespace {
     constexpr double kSlopeTolerance = 0.03;
     constexpr double kAnchorDriftTolerance = 0.125;
     constexpr double kLargeJumpDistance = 60.0; // 2 grid spaces in the editor.
+    constexpr int kWaveTrailRestartFrames = 2;
 
     bool g_fixEnabled = true;
     bool g_loggingEnabled = false;
@@ -69,6 +70,8 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
         bool slopeStateActive = false;
         int specialMoveDepth = 0;
         int teleportBypassFrames = 0;
+        int waveTrailRestartFrames = 0;
+        char const* waveTrailRestartReason = "unspecified";
         double anchorX = 0.0;
         double anchorY = 0.0;
         double direction = 0.0;
@@ -124,17 +127,43 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
         );
     }
 
-    void resetWaveTrail(char const* reason = "unspecified") {
+    void armWaveTrailRestart(int frames, char const* reason) {
+        auto previousFrames = m_fields->waveTrailRestartFrames;
+        if (frames > previousFrames) {
+            m_fields->waveTrailRestartFrames = frames;
+            m_fields->waveTrailRestartReason = reason;
+        }
+
         WAVEFIX_LOG_STATE(
-            "waveTrail reset reason={} pos=({}, {}) hasTrail={}",
+            "waveTrail restart armed reason={} prevFrames={} frames={} nextFrames={}",
+            reason,
+            previousFrames,
+            frames,
+            m_fields->waveTrailRestartFrames
+        );
+    }
+
+    void armWaveTrailRestart(char const* reason) {
+        armWaveTrailRestart(kWaveTrailRestartFrames, reason);
+    }
+
+    bool restartWaveTrail(char const* reason = "unspecified") {
+        WAVEFIX_LOG_STATE(
+            "waveTrail restart reason={} pos=({}, {}) hasTrail={} draw={}",
             reason,
             m_position.x,
             m_position.y,
-            m_waveTrail != nullptr
+            m_waveTrail != nullptr,
+            m_waveTrail != nullptr ? m_waveTrail->m_drawStreak : false
         );
-        if (m_waveTrail != nullptr) {
-            m_waveTrail->reset();
+        if (m_waveTrail == nullptr) {
+            return false;
         }
+
+        m_waveTrail->reset();
+        m_waveTrail->resumeStroke();
+        placeStreakPoint();
+        return true;
     }
 
     void seedAnchor(cocos2d::CCPoint const& position, double ratio, double direction, double xDirection, char const* reason = "unspecified") {
@@ -201,7 +230,7 @@ public:
         if (m_fields->specialMoveDepth == 0 && shouldFixWave()) {
             seedAnchor(m_position, waveRatio(m_vehicleSize), 0.0, currentXDirection(), reason);
             if (!m_isDashing) {
-                resetWaveTrail(reason);
+                armWaveTrailRestart(reason);
             }
         }
     }
@@ -230,6 +259,27 @@ public:
         WAVEFIX_LOG_STATE("teleport bypass tick remaining={}", m_fields->teleportBypassFrames);
     }
 
+    void tickWaveTrailRestart() {
+        if (m_fields->waveTrailRestartFrames <= 0) {
+            return;
+        }
+
+        if (!shouldFixWave()) {
+            m_fields->waveTrailRestartFrames = 0;
+            m_fields->waveTrailRestartReason = "unspecified";
+            return;
+        }
+
+        m_fields->waveTrailRestartFrames -= 1;
+        if (m_fields->waveTrailRestartFrames > 0) {
+            WAVEFIX_LOG_STATE("waveTrail restart tick remaining={}", m_fields->waveTrailRestartFrames);
+            return;
+        }
+
+        restartWaveTrail(m_fields->waveTrailRestartReason);
+        m_fields->waveTrailRestartReason = "unspecified";
+    }
+
     bool isTeleportFixTarget() {
         return shouldFixWave();
     }
@@ -245,7 +295,7 @@ public:
             PlayerObject::setPosition(position);
             if (!isInSpecialMove() && !m_isDashing) {
                 seedAnchor(m_position, waveRatio(m_vehicleSize), 0.0, currentXDirection(), "teleport-bypass");
-                resetWaveTrail("teleport-bypass");
+                armWaveTrailRestart("teleport-bypass");
             }
             return;
         }
@@ -270,7 +320,7 @@ public:
 
         auto currentSlopeState = isSlopeStateActive();
         if (currentSlopeState && !f->slopeStateActive) {
-            resetWaveTrail("slope-enter");
+            armWaveTrailRestart("slope-enter");
         }
         f->slopeStateActive = currentSlopeState;
 
@@ -281,14 +331,14 @@ public:
             char const* reason = "large-jump";
             PlayerObject::setPosition(position);
             seedAnchor(m_position, ratio, 0.0, xDirection, reason);
-            resetWaveTrail(reason);
+            armWaveTrailRestart(reason);
             return;
         }
 
         if (absDx <= kEpsilon && absDy > kEpsilon) {
             PlayerObject::setPosition(position);
             seedAnchor(m_position, ratio, 0.0, xDirection, "vertical-reseed");
-            resetWaveTrail("vertical-reseed");
+            armWaveTrailRestart("vertical-reseed");
             return;
         }
 
@@ -395,6 +445,7 @@ public:
 
         if (enable && m_isDart && !m_isDead && !m_isSideways && isLocalGameplayPlayer()) {
             seedAnchor(m_position, waveRatio(m_vehicleSize), 0.0, currentXDirection(), "toggle-dart");
+            armWaveTrailRestart("toggle-dart");
         }
     }
 
@@ -464,5 +515,12 @@ class $modify(WaveFixGameLayer, GJBaseGameLayer) {
         }
 
         GJBaseGameLayer::update(dt);
+
+        if (m_player1 != nullptr) {
+            geode::cast::modify_cast<WaveFixPlayerObject*>(m_player1)->tickWaveTrailRestart();
+        }
+        if (m_player2 != nullptr) {
+            geode::cast::modify_cast<WaveFixPlayerObject*>(m_player2)->tickWaveTrailRestart();
+        }
     }
 };
