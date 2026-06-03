@@ -1,4 +1,8 @@
-# 1.1.0
+# 1.1.1
+
+- Improved about page info.
+
+## 1.1.0
 
 - Fixed wave trail disappearing.
 - Code improvements.

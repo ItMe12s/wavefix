@@ -8,13 +8,13 @@ For more information, watch this educational [YouTube Short](https://www.youtube
 
 ## IMPORTANT
 
+- This mod is **CONSIDERED** cheating on most lists (like AREDL and Pointercrate).
+- This mod **MAY** break bots or macros.
+- Does **NOT** correct sideway (Arrow trigger) wave movements.
 - Works well with the Click Between Frames mod and does not cause desync.
-- This mod *may* be considered cheating for list levels because it changes wave physics.
-- This mod *may* break bots or macros.
 - Any frame extrapolation mods can cause the camera to look jittery when locked to the player.
-- Does *NOT* correct sideway (Arrow trigger) wave movements.
 
-In my opinion, it should be allowed because it prevents random slope deaths after the player made the correct input.
+*In my humble opinion*, you can use this mod casually but turn it off for list completions.
 
 Use the bug report and feedback channel in my Discord server!
 
