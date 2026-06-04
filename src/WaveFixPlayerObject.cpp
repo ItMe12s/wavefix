@@ -395,11 +395,11 @@ public:
         }
     }
 
-    void ringJump(RingObject* object, bool skipCheck) {
-        beginSpecialMove();
-        PlayerObject::ringJump(object, skipCheck);
-        endSpecialMove("ring-jump");
-    }
+    // void ringJump(RingObject* object, bool skipCheck) {
+    //     beginSpecialMove();
+    //     PlayerObject::ringJump(object, skipCheck);
+    //     endSpecialMove("ring-jump");
+    // }
 
     void spiderTestJump(bool dynamic) {
         beginSpecialMove();
@@ -413,17 +413,17 @@ public:
         endSpecialMove("spider-test-jump-internal");
     }
 
-    void bumpPlayer(float bumpMod, int objectType, bool noEffects, GameObject* object) {
-        beginSpecialMove();
-        PlayerObject::bumpPlayer(bumpMod, objectType, noEffects, object);
-        endSpecialMove("bump-player");
-    }
+    // void bumpPlayer(float bumpMod, int objectType, bool noEffects, GameObject* object) {
+    //     beginSpecialMove();
+    //     PlayerObject::bumpPlayer(bumpMod, objectType, noEffects, object);
+    //     endSpecialMove("bump-player");
+    // }
 
-    void propellPlayer(float yVelocity, bool noEffects, int objectType) {
-        beginSpecialMove();
-        PlayerObject::propellPlayer(yVelocity, noEffects, objectType);
-        endSpecialMove("propell-player");
-    }
+    // void propellPlayer(float yVelocity, bool noEffects, int objectType) {
+    //     beginSpecialMove();
+    //     PlayerObject::propellPlayer(yVelocity, noEffects, objectType);
+    //     endSpecialMove("propell-player");
+    // }
 };
 
 namespace wavefix {

@@ -1,4 +1,9 @@
-# 1.1.1
+# 1.1.2
+
+- Don't reset wave trail when activating orbs and pads.
+- Fixed mod logo.
+
+## 1.1.1
 
 - Improved about page info.
 
