@@ -15,11 +15,15 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
         int teleportBypassFrames   = 0;
         int waveTrailRestartFrames = 0;
         char const* waveTrailRestartReason = "unspecified";
-        double anchorX    = 0.0;
-        double anchorY    = 0.0;
-        double direction  = 0.0;
-        double xDirection = 0.0;
-        double ratio      = 1.0;
+
+        double anchorX     = 0.0;
+        double anchorY     = 0.0;
+        double direction   = 0.0;
+        double xDirection  = 0.0;
+        double ratio       = 1.0;
+        double visReqDx    = 0.0;
+        double visReqDy    = 0.0;
+        bool   visReqValid = false;
     };
 
     bool isLocalGameplayPlayer() {
@@ -53,6 +57,7 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
         m_fields->direction        = 0.0;
         m_fields->xDirection       = 0.0;
         m_fields->ratio            = 1.0;
+        m_fields->visReqValid      = false;
     }
 
     double currentXDirection() {
@@ -224,7 +229,26 @@ public:
         return shouldFixWave();
     }
 
+    bool visDelta(double& outDx, double& outDy) {
+        if (!m_fields->visReqValid) {
+            return false;
+        }
+        outDx = m_fields->visReqDx;
+        outDy = m_fields->visReqDy;
+        return true;
+    }
+
     void setPosition(cocos2d::CCPoint const& position) {
+        if (m_isDart && !m_isSideways && !m_isDead && isLocalGameplayPlayer()) {
+            auto dx = static_cast<double>(position.x) - static_cast<double>(m_position.x);
+            auto dy = static_cast<double>(position.y) - static_cast<double>(m_position.y);
+            if (!wavefix::isZeroDelta(std::abs(dx), std::abs(dy))) {
+                m_fields->visReqDx    = dx;
+                m_fields->visReqDy    = dy;
+                m_fields->visReqValid = true;
+            }
+        }
+
         if (!shouldFixWave()) {
             clearAnchor("shouldFixWave=false");
             PlayerObject::setPosition(position);
@@ -380,6 +404,7 @@ public:
         PlayerObject::toggleDartMode(enable, noEffects);
 
         clearAnchor("toggle-dart");
+        m_fields->visReqValid = false;
 
         if (enable && m_isDart && !m_isDead && !m_isSideways && isLocalGameplayPlayer()) {
             seedAnchor(m_position, wavefix::waveRatio(m_vehicleSize), 0.0, currentXDirection(), "toggle-dart");
@@ -480,5 +505,13 @@ namespace wavefix {
         }
         tickPlayerWaveTrailRestart(layer->m_player1);
         tickPlayerWaveTrailRestart(layer->m_player2);
+    }
+
+    bool getVisualizerDelta(PlayerObject* player, double& outDx, double& outDy) {
+        auto* wavePlayer = asWaveFixPlayer(player);
+        if (wavePlayer == nullptr) {
+            return false;
+        }
+        return wavePlayer->visDelta(outDx, outDy);
     }
 }

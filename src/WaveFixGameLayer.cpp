@@ -16,5 +16,6 @@ class $modify(WaveFixGameLayer, GJBaseGameLayer) {
         wavefix::tickTeleportBypass(this);
         GJBaseGameLayer::update(dt);
         wavefix::tickWaveTrailRestart(this);
+        wavefix::updateVisualizer(this);
     }
 };

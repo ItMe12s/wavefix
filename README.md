@@ -30,6 +30,6 @@ The wave being 44.9 and 45.1 degrees is a misconception, it actually depends on 
 
 And due to floating-point errors, if you go far enough on the X or Y axis, it can become super off or not move at all!
 
-You may think the mod is unnoticeable, but it actually helps on longer levels or levels.
+You may think the mod is unnoticeable, but it actually helps on longer levels (and having really weird click patterns).
 
 The more you know...

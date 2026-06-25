@@ -2,9 +2,9 @@
 
 Currently no announcements for the mod.
 
-## 1.1.3
+## 1.2.0
 
-- ?
+- Added visualizer.
 
 ## 1.1.2
 
