@@ -6,6 +6,8 @@ Now you can enjoy the perfect 45-degree wave and ~63.4349488229...-degree mini w
 
 Watch this [YouTube Short](https://www.youtube.com/shorts/dgpG8RsWSmQ) by gmdblue.
 
+Shoutout to Daily Dose of Geometry Dash [YouTube Short](https://www.youtube.com/shorts/DzdDlnWaAi0) for mentioning the controversy.
+
 ---
 
 ## IMPORTANT
@@ -27,5 +29,7 @@ Use the bug report and feedback channel in my Discord server!
 The wave being 44.9 and 45.1 degrees is a misconception, it actually depends on the player's position.
 
 And due to floating-point errors, if you go far enough on the X or Y axis, it can become super off or not move at all!
+
+You may think the mod is unnoticeable, but it actually helps on longer levels or levels.
 
 The more you know...
