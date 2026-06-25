@@ -1,4 +1,12 @@
-# 1.1.2
+# Changelog
+
+Currently no announcements for the mod.
+
+## 1.1.3
+
+- ?
+
+## 1.1.2
 
 - Don't reset wave trail when activating orbs and pads.
 - Fixed mod logo.

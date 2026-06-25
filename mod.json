@@ -8,7 +8,7 @@
 	},
 	"id": "imes.wavefix",
 	"name": "Wave Fix",
-	"version": "v1.1.2",
+	"version": "v1.1.3",
 	"developer": "imes",
 	"description": "Fixes the wave gamemode angle being off by ~0.1 degree and less.",
 	"tags": [
