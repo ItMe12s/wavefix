@@ -10,7 +10,6 @@ using namespace geode::prelude;
 class $modify(WaveFixPlayerObject, PlayerObject) {
     struct Fields {
         bool anchorValid           = false;
-        bool slopeStateActive      = false;
         int specialMoveDepth       = 0;
         int teleportBypassFrames   = 0;
         int waveTrailRestartFrames = 0;
@@ -51,7 +50,6 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
             );
         }
         m_fields->anchorValid      = false;
-        m_fields->slopeStateActive = false;
         m_fields->anchorX          = 0.0;
         m_fields->anchorY          = 0.0;
         m_fields->direction        = 0.0;
@@ -62,16 +60,6 @@ class $modify(WaveFixPlayerObject, PlayerObject) {
 
     double currentXDirection() {
         return m_isGoingLeft ? -1.0 : 1.0;
-    }
-
-    bool isSlopeStateActive() {
-        return (
-            m_isCollidingWithSlope ||
-            m_isOnSlope ||
-            m_slopeSlidingMaybeRotated ||
-            m_currentSlope != nullptr ||
-            m_currentSlope2 != nullptr
-        );
     }
 
     void armWaveTrailRestart(int frames, char const* reason) {
@@ -281,12 +269,6 @@ public:
             return;
         }
 
-        auto currentSlopeState = isSlopeStateActive();
-        if (currentSlopeState && !f->slopeStateActive) {
-            armWaveTrailRestart("slope-enter");
-        }
-        f->slopeStateActive = currentSlopeState;
-
         auto ratio = wavefix::waveRatio(m_vehicleSize);
         auto xDirection = currentXDirection();
 
@@ -294,14 +276,12 @@ public:
             char const* reason = "large-jump";
             PlayerObject::setPosition(position);
             seedAnchor(m_position, ratio, 0.0, xDirection, reason);
-            armWaveTrailRestart(reason);
             return;
         }
 
         if (absDx <= wavefix::kEpsilon && absDy > wavefix::kEpsilon) {
             PlayerObject::setPosition(position);
             seedAnchor(m_position, ratio, 0.0, xDirection, "vertical-reseed");
-            armWaveTrailRestart("vertical-reseed");
             return;
         }
 
@@ -408,7 +388,6 @@ public:
 
         if (enable && m_isDart && !m_isDead && !m_isSideways && isLocalGameplayPlayer()) {
             seedAnchor(m_position, wavefix::waveRatio(m_vehicleSize), 0.0, currentXDirection(), "toggle-dart");
-            armWaveTrailRestart("toggle-dart");
         }
     }
 

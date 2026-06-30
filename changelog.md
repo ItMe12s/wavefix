@@ -2,6 +2,11 @@
 
 Currently no announcements for the mod.
 
+## 1.2.1
+
+- Fixed wave trail cutting/discontinuing.
+- Fixed wave trail missing on wave gamemode portal entry.
+
 ## 1.2.0
 
 - Added visualizer.
