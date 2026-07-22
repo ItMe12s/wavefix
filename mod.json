@@ -8,7 +8,7 @@
 	},
 	"id": "imes.wavefix",
 	"name": "Wave Fix",
-	"version": "v1.2.1",
+	"version": "v1.2.2",
 	"developer": "imes",
 	"description": "Fixes the wave gamemode angle being off by ~0.1 degree and less.",
 	"tags": [
@@ -34,6 +34,12 @@
 			"name": "Enable Wave Fix",
 			"description": "Correct regular and mini wave movement using anchored trajectory projection.",
 			"default": true
+		},
+		"fixMomentum": {
+			"type": "bool",
+			"name": "Fix Momentum",
+			"description": "Also force wave y-velocity to match horizontal speed. Changes exit velocity into other gamemodes.",
+			"default": false
 		},
 		"visualizer": {
 			"type": "bool",
