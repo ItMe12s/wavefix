@@ -4,8 +4,7 @@ Currently no announcements for the mod.
 
 ## 1.2.2
 
-- Added Fix Momentum setting (off by default) for wave y-velocity correction.
-- Default behavior no longer changes exit velocity into other gamemodes.
+- Added Fix Momentum setting (off by default).
 
 ## 1.2.1
 
