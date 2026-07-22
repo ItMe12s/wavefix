@@ -341,17 +341,8 @@ public:
     }
 
     void setYVelocity(double velocity, int type) {
-        if (shouldBypassWaveFix()) {
-            PlayerObject::setYVelocity(velocity, type);
-            return;
-        }
-
-        if (m_isDashing) {
-            PlayerObject::setYVelocity(velocity, type);
-            return;
-        }
-
-        if (!shouldFixWave() || std::abs(velocity) <= wavefix::kEpsilon) {
+        if (!wavefix::g_fixMomentumEnabled || shouldBypassWaveFix() || m_isDashing
+            || !shouldFixWave() || std::abs(velocity) <= wavefix::kEpsilon) {
             PlayerObject::setYVelocity(velocity, type);
             return;
         }

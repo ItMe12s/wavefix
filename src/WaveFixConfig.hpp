@@ -8,6 +8,7 @@ using namespace geode::prelude;
 
 namespace wavefix {
     constexpr char const* kEnabledSetting      = "enabled";
+    constexpr char const* kFixMomentumSetting  = "fixMomentum";
     constexpr char const* kLoggingSetting      = "logging";
     constexpr char const* kStateLoggingSetting = "stateLogging";
     constexpr char const* kVisualizerSetting   = "visualizer";
@@ -19,6 +20,7 @@ namespace wavefix {
     constexpr int kWaveTrailRestartFrames  = 2;
 
     inline bool g_fixEnabled          = true;
+    inline bool g_fixMomentumEnabled  = false;
     inline bool g_loggingEnabled      = false;
     inline bool g_stateLoggingEnabled = false;
     inline bool g_visualizerEnabled   = false;
@@ -48,13 +50,17 @@ namespace wavefix {
 }
 
 $on_mod(Loaded) {
-    wavefix::g_fixEnabled = Mod::get()->getSettingValue<bool>(wavefix::kEnabledSetting);
-    wavefix::g_loggingEnabled = Mod::get()->getSettingValue<bool>(wavefix::kLoggingSetting);
+    wavefix::g_fixEnabled          = Mod::get()->getSettingValue<bool>(wavefix::kEnabledSetting);
+    wavefix::g_fixMomentumEnabled  = Mod::get()->getSettingValue<bool>(wavefix::kFixMomentumSetting);
+    wavefix::g_loggingEnabled      = Mod::get()->getSettingValue<bool>(wavefix::kLoggingSetting);
     wavefix::g_stateLoggingEnabled = Mod::get()->getSettingValue<bool>(wavefix::kStateLoggingSetting);
-    wavefix::g_visualizerEnabled = Mod::get()->getSettingValue<bool>(wavefix::kVisualizerSetting);
+    wavefix::g_visualizerEnabled   = Mod::get()->getSettingValue<bool>(wavefix::kVisualizerSetting);
 
     listenForSettingChanges<bool>(wavefix::kEnabledSetting, [](bool value) {
         wavefix::g_fixEnabled = value;
+    });
+    listenForSettingChanges<bool>(wavefix::kFixMomentumSetting, [](bool value) {
+        wavefix::g_fixMomentumEnabled = value;
     });
     listenForSettingChanges<bool>(wavefix::kLoggingSetting, [](bool value) {
         wavefix::g_loggingEnabled = value;

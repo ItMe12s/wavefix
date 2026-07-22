@@ -2,6 +2,10 @@
 
 Currently no announcements for the mod.
 
+## 1.2.2
+
+- Added Fix Momentum setting (off by default).
+
 ## 1.2.1
 
 - Fixed wave trail cutting/discontinuing.
