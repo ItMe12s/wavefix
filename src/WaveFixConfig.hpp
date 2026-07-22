@@ -7,11 +7,11 @@
 using namespace geode::prelude;
 
 namespace wavefix {
-    constexpr char const* kEnabledSetting       = "enabled";
-    constexpr char const* kFixMomentumSetting   = "fixMomentum";
-    constexpr char const* kLoggingSetting       = "logging";
-    constexpr char const* kStateLoggingSetting  = "stateLogging";
-    constexpr char const* kVisualizerSetting    = "visualizer";
+    constexpr char const* kEnabledSetting      = "enabled";
+    constexpr char const* kFixMomentumSetting  = "fixMomentum";
+    constexpr char const* kLoggingSetting      = "logging";
+    constexpr char const* kStateLoggingSetting = "stateLogging";
+    constexpr char const* kVisualizerSetting   = "visualizer";
     
     constexpr double kEpsilon              = 0.000001;
     constexpr double kSlopeTolerance       = 0.03;
