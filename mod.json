@@ -1,5 +1,5 @@
 {
-	"geode": "5.8.2",
+	"geode": "5.9.0",
 	"gd": {
 		"win": "2.2081",
 		"android": "2.2081",
@@ -8,7 +8,7 @@
 	},
 	"id": "imes.wavefix",
 	"name": "Wave Fix",
-	"version": "v1.2.2",
+	"version": "v1.2.3",
 	"developer": "imes",
 	"description": "Fixes the wave gamemode angle being off by ~0.1 degree and less.",
 	"tags": [
