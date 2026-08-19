@@ -30,6 +30,10 @@ namespace wavefix {
             return std::atan(absSlope) * 180.0 / M_PI;
         }
 
+        class WaveFixTrajectoryNode;
+
+        WaveFixTrajectoryNode* g_node = nullptr;
+
         struct PlayerLabels {
             cocos2d::CCLabelBMFont* vanilla = nullptr;
             cocos2d::CCLabelBMFont* ideal   = nullptr;
@@ -46,6 +50,10 @@ namespace wavefix {
                 }
                 delete ret;
                 return nullptr;
+            }
+
+            ~WaveFixTrajectoryNode() {
+                g_node = nullptr;
             }
 
             void rebuild(GJBaseGameLayer* gl) {
@@ -94,7 +102,7 @@ namespace wavefix {
             }
 
             void updatePlayer(PlayerObject* player, PlayerLabels& pair) {
-                if (pair.vanilla == nullptr || pair.ideal == nullptr) {
+                if (pair.vanilla == nullptr) {
                     return;
                 }
 
@@ -112,9 +120,7 @@ namespace wavefix {
                 auto absDx = std::abs(reqDx);
                 auto absDy = std::abs(reqDy);
                 auto ratio = waveRatio(player->m_vehicleSize);
-                if (isZeroDelta(absDx, absDy)
-                    || absDx <= kEpsilon
-                    || !isWaveMovementCandidate(absDx, absDy, ratio)) {
+                if (!isWaveMovementCandidate(absDx, absDy, ratio)) {
                     hide(pair);
                     return;
                 }
@@ -152,30 +158,28 @@ namespace wavefix {
         };
 
         WaveFixTrajectoryNode* getNode(GJBaseGameLayer* gl) {
-            auto* layer = gl->m_objectLayer;
-            auto* node = static_cast<WaveFixTrajectoryNode*>(layer->getChildByID(kNodeId));
-            if (node == nullptr) {
-                node = WaveFixTrajectoryNode::create();
-                if (node == nullptr) {
-                    return nullptr;
+            if (g_node != nullptr) {
+                if (g_node->getParent() == nullptr) {
+                    gl->m_objectLayer->addChild(g_node, kNodeZOrder);
                 }
-                node->setID(kNodeId);
-                layer->addChild(node, kNodeZOrder);
+                return g_node;
             }
+            auto* node = WaveFixTrajectoryNode::create();
+            if (node == nullptr) {
+                return nullptr;
+            }
+            node->setID(kNodeId);
+            gl->m_objectLayer->addChild(node, kNodeZOrder);
+            g_node = node;
             return node;
         }
     }
 
     void updateVisualizer(GJBaseGameLayer* gl) {
-        if (gl == nullptr || gl->m_objectLayer == nullptr) {
-            return;
-        }
-        if (!g_visualizerEnabled) {
-            if (auto* node = getNode(gl)) node->setVisible(false);
+        if (!g_visualizerEnabled || gl == nullptr || gl->m_objectLayer == nullptr) {
             return;
         }
         if (auto* node = getNode(gl)) {
-            node->setVisible(true);
             node->rebuild(gl);
         }
     }

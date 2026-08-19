@@ -5,8 +5,7 @@ Currently no announcements for the mod.
 ## 1.2.3
 
 - New mod logo.
-
-add stuff here...
+- Fixed a visualizer bug.
 
 ## 1.2.2
 
