@@ -12,13 +12,14 @@ Shoutout to Daily Dose of Geometry Dash [YouTube Short](https://www.youtube.com/
 
 ## IMPORTANT
 
-- This mod is considered **CHEATING** on most lists (like AREDL and Pointercrate).
-- This mod **MAY BREAK** bots or macros.
-- Does **NOT** correct sideways (Arrow trigger) wave movements.
-- Works well with the Click Between Frames mod and does not cause desync.
-- Any frame extrapolation mods can make the camera jittery when locked to the player.
+- This mod is considered **CHEATING** on most lists (Like AREDL and Pointercrate)
+- This mod may **BREAK** bots or macros
+- Does **NOT** correct sideways (Arrow trigger) wave movements
+- Works well with the Click Between Frames mod
+- Does not cause music desync
+- Any frame extrapolation mods can make the camera jittery when locked to the player
 
-*In my humble opinion*, you can use it casually but turn it off for list completions.
+*In my humble opinion*, you can use it daily but turn it off for completions.
 
 Use the bug report and feedback channel in my Discord server!
 

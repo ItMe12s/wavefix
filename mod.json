@@ -21,9 +21,6 @@
 		"community": "https://discord.gg/E8f6D6XqbW",
 		"source": "https://github.com/ItMe12s/wavefix"
 	},
-	"dependencies": {
-		"geode.node-ids": ">=v1.23.3"
-	},
 	"settings": {
 		"wavefix-title": {
 			"type": "title",
