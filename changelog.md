@@ -2,6 +2,10 @@
 
 Currently no announcements for the mod.
 
+## 1.2.4
+
+- Updated to Geode 6.0.0-beta.3
+
 ## 1.2.3
 
 - New mod logo.

@@ -59,6 +59,7 @@ build-*/
 # Visual Studio
 .vs/
 graphify-out/
+*.pdn
 
 # CLion
 .idea/
